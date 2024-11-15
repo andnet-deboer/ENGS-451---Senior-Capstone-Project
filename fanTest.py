@@ -7,8 +7,9 @@ servo = Servo(13)
 
 try:
 	while True:
-    		fan.on() 
-    		sleep(7)
-    		fan.off() 
+		fan.on() 
+		sleep(7)
+		fan.off() 
 except KeyboardInterrupt:
 	print("Program stopped")
+	

@@ -70,4 +70,5 @@ try:
 
 except KeyboardInterrupt:
 	print("Program stopped")
+	servo.detach() # stop servo motion
 	

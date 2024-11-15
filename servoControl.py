@@ -36,7 +36,8 @@ class ServoWithControl:
             angle = self.max_angle
         
         # Convert angle to a servo value (-1 to 1)
-        value = (angle - self.min_angle) / (self.max_angle - self.min_angle) * 2 - 1
+        # Scale the angle between min_angle and max_angle to a value between -1 and 1
+        value = max(-90, min(90, angle))
         self.servo.value = value
 
     def move_to(self, target_angle, velocity=None, acceleration=None):
@@ -48,8 +49,8 @@ class ServoWithControl:
         if acceleration is not None:
             self.acceleration = acceleration
 
-        target_value = (target_angle - self.min_angle) / (self.max_angle - self.min_angle) * 2 - 1
-        self.target_value = target_value
+        # Scale the target angle to a value between -1 and 1
+        self.target_value = max(-90, min(90, target_angle))
         
         # Move the servo with acceleration and velocity control
         self._move_with_velocity_control()
@@ -59,19 +60,27 @@ class ServoWithControl:
         Internal method that moves the servo from its current position to the target value
         by gradually increasing its velocity (acceleration) until it reaches the target.
         """
-        # Start moving
         start_time = time.time()
         while abs(self.target_value - self.current_value) > 0.01:
+            # Check if the servo is overshooting and adjust velocity accordingly
             if self.target_value > self.current_value:
-                self.velocity = min(self.velocity + self.acceleration, self.max_velocity)  # Accelerate
+                # Accelerate towards the target if behind
+                self.velocity = min(self.velocity + self.acceleration, self.max_velocity)
             elif self.target_value < self.current_value:
-                self.velocity = max(self.velocity - self.acceleration, self.min_velocity)  # Decelerate
-            
-            # Move the servo
+                # Decelerate towards the target if overshooting
+                self.velocity = max(self.velocity - self.acceleration, self.min_velocity)
+
+            # Gradually move the servo towards the target
             if self.target_value > self.current_value:
                 self.current_value += self.velocity
             elif self.target_value < self.current_value:
                 self.current_value -= self.velocity
+
+            # Clip the current_value to ensure it's between -1 and 1
+            self.current_value = max(-90, min(90, self.current_value))
+
+            # Print debug info to track progress
+            print(f"Target: {self.target_value:.2f}, Current: {self.current_value:.2f}, Velocity: {self.velocity:.2f}")
 
             # Update the servo position
             self.servo.value = self.current_value
@@ -85,9 +94,13 @@ class ServoWithControl:
 
             time.sleep(0.05)  # Delay for smooth motion
 
+        # Once finished, print a confirmation that the target is reached
+        print(f"Target reached: {self.target_value:.2f}, Current: {self.current_value:.2f}")
+
+
     def stop(self):
         """ Stop the servo by setting its value to None (uncontrolled). """
-        self.servo.value = None
+        self.servo.detach()
 
     def set_velocity(self, velocity):
         """ Set the velocity for the servo (how fast it moves). """
@@ -124,6 +137,7 @@ class ServoWithControl:
 
         plt.tight_layout()
         plt.show()
+
 
 # Example usage:
 try:
