@@ -129,8 +129,8 @@ try:
         time.sleep(1)  # Pause for 1 second
 
     # After the movement is complete, plot the data
-    servo_control.plot_data()
     servo_control.stop()
+    servo_control.plot_data()
 except KeyboardInterrupt:
     print("Program stopped")
     # Call the detach method on the servo_control instance, not self
