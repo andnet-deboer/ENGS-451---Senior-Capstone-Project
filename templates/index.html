@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multithreading Visualization</title>
+    <script src="https://cdn.socket.io/4.0.0/socket.io.min.js"></script>
+    <script>
+        // Connect to the WebSocket server
+        var socket = io.connect('http://' + document.domain + ':' + location.port);
+
+        // Handle time updates
+        socket.on('update_time', function(data) {
+            document.getElementById('time').innerText = 'Current Time: ' + data.time;
+        });
+
+        // Handle count updates
+        socket.on('update_count', function(data) {
+            document.getElementById('count').innerText = 'Current Count: ' + data.count;
+        });
+
+        // Handle progress updates for visual task indicators
+        socket.on('update_progress', function(data) {
+            let task = data.task;
+            let progress = data.progress;
+
+            if (task === 'time') {
+                // Update time progress bar
+                document.getElementById('time_bar').style.width = progress + '%';
+                document.getElementById('time_bar').innerText = 'Time Progress: ' + progress + '%';
+            } else if (task === 'count') {
+                // Update count progress bar
+                document.getElementById('count_bar').style.width = progress + '%';
+                document.getElementById('count_bar').innerText = 'Count Progress: ' + progress + '%';
+            }
+        });
+    </script>
+</head>
+<body>
+    <h1>Multithreading Visualization</h1>
+    <div>
+        <h2 id="time">Current Time: Loading...</h2>
+        <div id="time_bar" style="background-color: lightblue; height: 30px; width: 0%; color: black; text-align: center; line-height: 30px;">Time Progress: 0%</div>
+    </div>
+    
+    <div>
+        <h2 id="count">Current Count: Loading...</h2>
+        <div id="count_bar" style="background-color: lightgreen; height: 30px; width: 0%; color: black; text-align: center; line-height: 30px;">Count Progress: 0%</div>
+    </div>
+</body>
+</html>
