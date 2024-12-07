@@ -14,15 +14,12 @@ notes_in_chronological_order = []
 for element in recurse_work.notes:
     notes_in_chronological_order.append(element)
 
-# Sort the notes by their start times
-#notes_in_chronological_order.sort(key=lambda note: note.offset)
-
-parsed_work.plot()
+#parsed_work.plot()
 # Iterate through the sorted notes and play them at their respective start times
 for element in notes_in_chronological_order:
     time.sleep(element.offset)
-    print(element.name +" " + str(element.beatDuration))
-    element.show('midi')
+    print(element.name)
+    #element.show('midi')
     print("Servo moving now")
 
     
