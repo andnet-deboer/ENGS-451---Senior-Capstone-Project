@@ -119,7 +119,7 @@ class ServoWithControl:
         plt.show()
 
 try:
-    servo_control = ServoWithControl(13, min_angle=-90, max_angle=90, pin_factory=factory)
+    servo_control = ServoWithControl(18, min_angle=-90, max_angle=90, pin_factory=factory)
 
     # Move back and forth between -90 and 90 degrees at 2 RPM
     for _ in range(3):  # Repeat the motion 3 times
