@@ -39,7 +39,8 @@ def count(count, bpm, servo, low_angle=-45, high_angle=-5):
     cnt = 0
     while count >= cnt:
         servo.value = low_angle / 90
-        sleep(60 / (1.01*bpm))            
+        sleep(60 / (1.01*bpm))
+        cnt +=1            
         servo.value = high_angle / 90
         sleep(60 / (1.01*bpm))
         cnt += 1
@@ -92,16 +93,14 @@ def acceleratedBPM(startBpm=60, maxBpm=140, step=20, strokes=5, servo=servoA):
         print(f"Current Stroke: {strokes}")
         print(f"Current Servo: {servo}")
         count(strokes, i, servo, low_angle=LOW, high_angle=HIGH)
-        count(strokes, i, servo, low_angle=LOW, high_angle=HIGH)
-        count(strokes, i, servo, low_angle=LOW, high_angle=HIGH)
-        count(strokes, i, servo, low_angle=LOW, high_angle=HIGH)
 try:
     while True:
-      LOW = -12
-      HIGH = 15
-      BPM = 400
-      #acceleratedBPM(BPM, BPM, 20, 5, servoA)
-      count(100, BPM, servoA, low_angle=LOW, high_angle=HIGH)
+      LOW = -14
+      HIGH = 1
+      BPM = 60
+      #acceleratedBPM(100, 120, 20, 1, servoG)
+      #acceleratedBPM(80, 200, 10, 5, servoA)
+      count(1000, BPM, servoA, low_angle=LOW, high_angle=HIGH)
       
 
 
