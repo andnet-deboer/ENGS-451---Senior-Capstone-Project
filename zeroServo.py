@@ -8,10 +8,7 @@ import numpy as np
 import lib8relind
 import RPi.GPIO as GPIO
 import atexit
-# Import necessary libraries
-from music21 import *
-import time
-import concurrent.futures
+
 
 #  Servo Motor connnectios #
 "  E    A     D    G"
@@ -28,21 +25,6 @@ servoG = Servo(10, pin_factory=factory, initial_value=initial_value)
 servoD = Servo(27, pin_factory=factory, initial_value=initial_value)
 servoA = Servo(18, pin_factory=factory, initial_value=initial_value)
 servoE = Servo(24, pin_factory=factory, initial_value=initial_value)
-# Variables
-bpm        =  60    # beats per minute
-low_angle  = -45    # min -90 degrees
-high_angle = -5    # max  90 degrees
-increment  = 0.05
-start_time = time.time()
-
-def count(count, bpm, servo, low_angle=-45, high_angle=-5): 
-    cnt = 0
-    while count >= cnt:
-        servo.value = low_angle / 90
-        sleep(60 / (1.01*bpm))            
-        servo.value = high_angle / 90
-        sleep(60 / (1.01*bpm))
-        cnt += 1
 
 def detach_servos(except_servo=None):
     if except_servo != servoG:
@@ -74,36 +56,10 @@ def cleanup():
     detach_servos()
     GPIO.cleanup()
 
-def run_servo(servo):
-    count(-1, bpm, servo)
-# Define the dictionary mapping notes to servos
-note_to_servo = {
-    'A': servoA,
-    'G': servoG,
-    'E': servoE,
-    'D': servoD,
-    # Add more mappings as needed
-}
 
-''' Play notes with increasing tempo'''
-def acceleratedBPM(startBpm=60, maxBpm=140, step=20, strokes=5, servo=servoA):
-    for i in range(startBpm, maxBpm, step):
-        print(f"Current BPM: {i}")
-        print(f"Current Stroke: {strokes}")
-        print(f"Current Servo: {servo}")
-        count(strokes, i, servo, low_angle=LOW, high_angle=HIGH)
-        count(strokes, i, servo, low_angle=LOW, high_angle=HIGH)
-        count(strokes, i, servo, low_angle=LOW, high_angle=HIGH)
-        count(strokes, i, servo, low_angle=LOW, high_angle=HIGH)
 try:
     while True:
-      LOW = -12
-      HIGH = 15
-      BPM = 400
-      #acceleratedBPM(BPM, BPM, 20, 5, servoA)
-      count(100, BPM, servoA, low_angle=LOW, high_angle=HIGH)
-      
-
+      zero_servos
 
 except KeyboardInterrupt:
     print("Program stopped")

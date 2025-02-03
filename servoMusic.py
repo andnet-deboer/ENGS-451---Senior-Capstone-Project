@@ -16,12 +16,8 @@ import concurrent.futures
 
 # Convert the file to a stream
 #parsed_work = converter.parse('Two-bar C major scale.xml')
-# Get the directory of the current script
-script_dir = os.path.dirname(os.path.abspath(__file__))
-
-# Construct the path to the MusicXML file
-musicxml_path = os.path.join(script_dir, 'Songs', '7_Nation_Army.musicxml')
-parsed_work = converter.parse('Songs/7_Nation_Army.musicxml')
+#arsed_work = converter.parse('7_Nation_Army.musicxml')
+parsed_work = converter.parse('Viva_La_Vida_by_Coldplay.musicxml')
 
 # Depth-first search traversal
 recurse_work = parsed_work.recurse()
@@ -88,12 +84,12 @@ note_to_servo = {
     'G': servoG,
     'E': servoE,
     'D': servoD,
+    'B': servoA,
+    'C': servoG
     # Add more mappings as needed
 }
 
 try:
-    while True:
-        dt = 0.2
         for element in notes_in_chronological_order:
             time.sleep(element.offset)
             if isinstance(element, note.Note):
@@ -101,7 +97,7 @@ try:
                 if note_name in note_to_servo:
                     move_servo = note_to_servo[note_name]
                     detach_servos(except_servo=move_servo)
-                    count(1, 300, move_servo)
+                    count(1, 120,move_servo)
                     # element.show('midi')
                     
                     print(f"Servo {move_servo} moving now")
@@ -117,4 +113,6 @@ except KeyboardInterrupt:
 
 except Exception as e:
     print(f"An error occurred: {e}")
+    cleanup()
+finally:
     cleanup()
