@@ -11,7 +11,9 @@ This system should be able to play at an intermediate level of bass technique an
 ## Bass Guitar
 
 <div style="text-align: center;">
-  <img src="https://github.com/user-attachments/assets/aefe1e66-116b-4fa1-bda9-14f4f756127e" alt="Bass Guitar" style="width: 60%; height: auto;">
+  <!<img src="https://github.com/user-attachments/assets/aefe1e66-116b-4fa1-bda9-14f4f756127e" alt="Bass Guitar" style="width: 60%; height: auto;">
+  <img src="https://github.com/user-attachments/assets/591f4243-3f26-4169-9182-dbd01ac0d9ab" alt="Bass Guitar" style="width: 60%; height: auto;">
+
 </div>
 
 ---

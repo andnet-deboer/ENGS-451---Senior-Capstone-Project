@@ -17,8 +17,7 @@ for element in recurse_work.notes:
 
 # Sort the notes by their start times
 notes_in_chronological_order.sort(key=lambda note: note.offset)
-
-parsed_work.plot()
+#parsed_work.plot()
 # Iterate through the sorted notes and play them at their respective start times
 for element in notes_in_chronological_order:
     time.sleep(element.offset)
