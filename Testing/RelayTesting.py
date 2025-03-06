@@ -6,7 +6,7 @@ lib8relind.set_all(0,0)
 
 def Relay() :
 	def _init_():
-		self.stack = 0;
+		self.stack = 0
 
 	def set(relay, value):
 		if (relay == 6):
@@ -20,18 +20,22 @@ def Relay() :
 
 while True:
 	for i in range(1,8,1):
-		if (i == 6):
-			i = 7
-		lib8relind.set(0, i, 1)
+		#if (i == 6):
+			#i = 7
+		lib8relind.set(0, 4, 1)
 		print("############### NEW COMMAND ############################\n")
 		print ("Relay: " + str(i))
 		print ("Value: " + str(lib8relind.get(0,i)))
-		sleep(1)
-		if (i == 7):
-			lib8relind.set(0, 6, 1)
-			print("######### NEW COMMAND############################\n")
-			print ("Relay: " + str(i))
-			print ("Value: " + str(lib8relind.get(0,i)))
-			sleep(1)
-	lib8relind.set_all(0,0)
+		sleep(5)
+		lib8relind.set_all(0,0)
+		sleep(2)
+		#if (i == 7):
+			#lib8relind.set(0, 6, 1)
+			#print("######### NEW COMMAND############################\n")
+			#print ("Relay: " + str(i))
+			#print ("Value: " + str(lib8relind.get(0,i)))
+			#sleep(0.1)
+	#lib8relind.set_all(0,0)
+
+
 

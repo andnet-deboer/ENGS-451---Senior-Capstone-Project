@@ -35,12 +35,15 @@ class ServoWithControl:
         value = max(-90, min(90, angle))
         self.servo.value = value
 
-    def move_to(self, target_angle, velocity_rpm):
+    def move_to(self, target_angle, velocity_bpm):
         """
-        Move the servo to a target angle at a constant speed (RPM).
+        Move the servo to a target angle at a constant speed (BPM).
         """
+        # Convert BPM to RPM
+        velocity_rpm = velocity_bpm / 180
+        
         # Set the target position
-        self.target_value = max(-90, min(90, target_angle))
+        self.target_value = max(self.min_angle, min(self.max_angle, target_angle))
         
         # Set the velocity in RPM (Revolutions per minute)
         self.velocity_rpm = velocity_rpm
@@ -70,7 +73,7 @@ class ServoWithControl:
 
         while abs(self.current_value - self.target_value) > 0.5:  # Allow for small error tolerance
             # Move the servo
-            self.current_value += degrees_per_second * direction * 0.05  # Update every 50ms
+            self.current_value += degrees_per_second * direction * 0.05  # Update every 0.05 seconds
 
             # Clip the position to ensure it's within the allowed range
             self.current_value = max(self.min_angle, min(self.max_angle, self.current_value))
@@ -119,20 +122,18 @@ class ServoWithControl:
         plt.show()
 
 try:
-    servo_control = ServoWithControl(18, min_angle=-90, max_angle=90, pin_factory=factory)
-
-    # Move back and forth between -90 and 90 degrees at 2 RPM
-    for _ in range(3):  # Repeat the motion 3 times
-        servo_control.move_to(1, velocity_rpm=2)  # Move to 90 degrees at 2 RPM
-        time.sleep(1)  # Pause for 1 second
-        servo_control.move_to(-1, velocity_rpm=2)  # Move to -90 degrees at 2 RPM
-        time.sleep(1)  # Pause for 1 second
-
+    servoG_control = ServoWithControl(18, min_angle=-10, max_angle=10, pin_factory=factory)
+    #servoG_control = ServoWithControl(27, min_angle=-10, max_angle=10, pin_factory=factory)
+    #servoG_control = ServoWithControl(10, min_angle=--10, max_angle=10, pin_factory=factory)
+    #servoG_control = ServoWithControl(24, min_angle=-10, max_angle=10, pin_factory=factory)
+    for _ in range(3000):  # Repeat the motion 3 times
+        servoG_control.move_to(-1, velocity_bpm=120)  # Move to -0.3 degrees at 60 BPM
+        time.sleep(0.2)
+        servoG_control.move_to(1, velocity_bpm=120)  # Move to 0.3 degrees at 60 BPM
+        time.sleep(0.2)
     # After the movement is complete, plot the data
-    servo_control.stop()
-    servo_control.plot_data()
+    servoG_control.stop()
+    servoG_control.plot_data()
 except KeyboardInterrupt:
     print("Program stopped")
-    # Call the detach method on the servo_control instance, not self
-    print("STOP")
-    servo_control.stop()
+    servoG_control.stop()

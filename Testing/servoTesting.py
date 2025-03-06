@@ -37,12 +37,13 @@ start_time = time.time()
 
 def count(count, bpm, servo, low_angle=-45, high_angle=-5): 
     cnt = 0
+    attach_servos(servo)
     while count >= cnt:
         servo.value = low_angle / 90
-        sleep(60 / (1.01*bpm))
+        sleep(60 / (1.0*bpm))
         cnt +=1            
         servo.value = high_angle / 90
-        sleep(60 / (1.01*bpm))
+        sleep(60 / (1.0*bpm))
         cnt += 1
 
 def detach_servos(except_servo=None):
@@ -54,6 +55,17 @@ def detach_servos(except_servo=None):
         servoA.detach()
     if except_servo != servoE:
         servoE.detach()
+
+def attach_servos(except_servo=None):
+    if except_servo != servoG:
+        servoG.value = 0#5/90
+    if except_servo != servoD:
+        servoD.value = 0#5/90
+    if except_servo != servoA:
+        servoA.value = 0#5/90
+    if except_servo != servoE:
+        servoE.value = 0#5/90
+
 
 ''' Set all servos to zero position '''
 def zero_servos():
@@ -87,20 +99,25 @@ note_to_servo = {
 }
 
 ''' Play notes with increasing tempo'''
-def acceleratedBPM(startBpm=60, maxBpm=140, step=20, strokes=5, servo=servoA):
+def acceleratedBPM(startBpm=60, maxBpm=140, step=40, strokes=5, servo=servoA, servo2=servoG):
     for i in range(startBpm, maxBpm, step):
         print(f"Current BPM: {i}")
         print(f"Current Stroke: {strokes}")
         print(f"Current Servo: {servo}")
         count(strokes, i, servo, low_angle=LOW, high_angle=HIGH)
+        count(strokes, i, servo2, low_angle=LOW, high_angle=HIGH)
 try:
     while True:
-      LOW = -14
-      HIGH = 1
-      BPM = 60
-      #acceleratedBPM(100, 120, 20, 1, servoG)
-      #acceleratedBPM(80, 200, 10, 5, servoA)
-      count(1000, BPM, servoA, low_angle=LOW, high_angle=HIGH)
+      LOW = -30
+      HIGH = 30
+      BPM = 120
+      #acceleratedBPM(300, 500, 5, 1, servoG,servoA)
+      #acceleratedBPM(60, 200, 5, 1, servoA)
+      count(1, BPM, servoG, low_angle=-15, high_angle=15)
+      sleep(0.5)
+      count(1, BPM, servoA, low_angle=-25, high_angle=5)
+      sleep(0.5)
+      #count(1, BPM, servoG, low_angle=-30, high_angle=20)
       
 
 
