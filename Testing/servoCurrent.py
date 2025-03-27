@@ -1,108 +1,214 @@
-# SPDX-FileCopyrightText: 2021 ladyada for Adafruit Industries
-# SPDX-License-Identifier: MIT
-
 import time
-import board
-import adafruit_ina260
+import threading
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 
-# Initialize the sensor
-i2c = board.I2C()  # uses board.SCL and board.SDA
-# i2c = board.STEMMA_I2C()  # For using the built-in STEMMA QT connector on a microcontroller
-ina260 = adafruit_ina260.INA260(i2c)
+from gpiozero import Servo
+from gpiozero.pins.pigpio import PiGPIOFactory
+import lib8relind
+import RPi.GPIO as GPIO
+import board
+import adafruit_ina260
+import atexit
 
-# Initialize lists to store data
-times = []
-currents = []
-voltages = []
-
-# Create a figure and axis for the plot
-fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(15, 10))
-
-# Create a line object with random data
-line_current, = ax1.plot([], [], '-', lw=2, label='Current (mA)', color='blue')
-line_voltage, = ax2.plot([], [], '-', lw=2, label='Voltage (V)', color='green')
-
-# Format waveform axes
-ax1.set_title('INA260 Sensor Readings')
-ax1.set_xlabel('Time (s)')
-ax1.set_ylabel('Current (mA)')
-ax1.legend(loc='upper right')
-ax1.set_xlim(0, 10)
-ax1.set_ylim(0, 5000)
-
-ax2.set_xlabel('Time (s)')
-ax2.set_ylabel('Voltage (V)')
-ax2.legend(loc='upper right')
-ax2.set_xlim(0, 10)
-ax2.set_ylim(0, 20)
-
-print('stream started')
-
-# for measuring frame rate
-frame_count = 0
+# ====== Setup =======
+factory = PiGPIOFactory()
 start_time = time.time()
+plot_running = True
 
-def animate(i):
-    global times, currents, voltages
+# ====== Relay Class ======
+class Relay:
+    def __init__(self, relay_number):
+        self.relay_number = relay_number
 
-    # Read sensor data
-    current = ina260.current
-    voltage = ina260.voltage
-    current_time = time.time() - start_time
+    def on(self):
+        relay = self.relay_number
+        if relay == 6:
+            relay = 7
+        elif relay == 7:
+            relay = 6
+        lib8relind.set(0, relay, 1)
 
-    # Append data to lists
-    times.append(current_time)
-    currents.append(current)
-    voltages.append(voltage)
+    def off(self):
+        relay = self.relay_number
+        if relay == 6:
+            relay = 7
+        elif relay == 7:
+            relay = 6
+        lib8relind.set(0, relay, 0)
 
-    # Limit lists to the last 100 data points
-    times = times[-100:]
-    currents = currents[-100:]
-    voltages = voltages[-100:]
+# ====== Servo Class ======
+class ServoController:
+    def __init__(self, pin, factory=factory, LOW=-15, HIGH=15, offset=0, name=None):
+        self.name = name
+        self.servo = Servo(pin, pin_factory=factory, initial_value=0)
+        self.low = LOW
+        self.high = HIGH
+        self.offset = offset
+        self.state = True
 
-    # Update line data
-    line_current.set_data(times, currents)
-    line_voltage.set_data(times, voltages)
+    def set_angle(self, angle):
+        self.servo.value = (angle + self.offset) / 90
 
-    # Update axes limits
-    ax1.set_xlim(max(0, current_time - 10), current_time)
-    ax2.set_xlim(max(0, current_time - 10), current_time)
+    def pick(self):
+        if self.state:
+            self.set_angle(self.low)
+        else:
+            self.set_angle(self.high)
+        self.state = not self.state
 
-# Create an animation that updates the plot every 100 milliseconds
-ani = animation.FuncAnimation(fig, animate, interval=100)
+    def detach(self):
+        self.servo.detach()
 
-# Show the plot
-plt.tight_layout()
-plt.show()
+# ====== Relay Initialization ======
+fret1 = Relay(1)
+fret2 = Relay(2)
+fret3 = Relay(3)
+fret4 = Relay(4)
 
+def relay_off(except_fret=None):
+    for fret in [fret1, fret2, fret3, fret4]:
+        if fret != except_fret:
+            fret.off()
+
+# ====== Servo Initialization ======
+servoE = ServoController(18, LOW=-15, HIGH=15, name="E")
+servoA = ServoController(27, LOW=-15, HIGH=15, name="A")
+servoD = ServoController(24, LOW=-20, HIGH=20, offset=4, name="D")
+servoG = ServoController(10, LOW=-15, HIGH=15, name="G")
+
+def detach_servos():
+    for servo in [servoE, servoA, servoD, servoG]:
+        servo.detach()
+
+def detach_relays():
+    lib8relind.set_all(0, 0)
+
+def cleanup():
+    detach_servos()
+    detach_relays()
+    GPIO.cleanup()
+
+atexit.register(cleanup)
+
+# ====== INA260 Sensor Class ======
+class CurrentSensor:
+    def __init__(self):
+        self.i2c = board.I2C()
+        self.ina260 = adafruit_ina260.INA260(self.i2c)
+
+    def current(self):
+        return self.ina260.current
+
+    def voltage(self):
+        return self.ina260.voltage
+
+    def power(self):
+        return self.ina260.power
+
+# ====== Real-Time Plotting ======
+current_data = {
+    "times": [],
+    "currents": []
+}
+
+def update_plot(i):
+    plt.cla()
+    plt.title("Live Current Draw (INA260)")
+    plt.xlabel("Time (s)")
+    plt.ylabel("Current (mA)")
+    if current_data["times"]:
+        plt.plot(current_data["times"], current_data["currents"], label="Current (mA)")
+        plt.legend(loc="upper right")
+
+def start_plotting():
+    fig = plt.figure()
+    ani = animation.FuncAnimation(fig, update_plot, interval=500)
+    plt.tight_layout()
+    plt.show()
+
+def log_current_sensor():
+    sensor = CurrentSensor()
+    global plot_running
+
+    try:
+        with open("ina260_data.csv", "w") as f:
+            f.write("Time(s),Current(mA),Voltage(V)\n")
+            while plot_running:
+                try:
+                    current = sensor.current()
+                    voltage = sensor.voltage()
+                    t = time.time() - start_time
+
+                    current_data["times"].append(t)
+                    current_data["currents"].append(current)
+
+                    # Write to CSV
+                    f.write(f"{t:.3f},{current:.2f},{voltage:.2f}\n")
+                    f.flush()
+
+                    # Keep only recent data for plotting
+                    if len(current_data["times"]) > 100:
+                        current_data["times"] = current_data["times"][-100:]
+                        current_data["currents"] = current_data["currents"][-100:]
+
+                    time.sleep(0.2)
+                except Exception as e:
+                    print("Sensor read error:", e)
+    except Exception as e:
+        print(f"File write error: {e}")
+
+
+# ====== Thread Setup ======
+sensor_thread = threading.Thread(target=log_current_sensor)
+plot_thread = threading.Thread(target=start_plotting)
+sensor_thread.start()
+plot_thread.start()
+
+# ====== Main Play Loop ======
 try:
+    delay = 2
     while True:
-        current = ina260.current
-        voltage = ina260.voltage
-        power = ina260.power
-        current_time = time.time() - start_time
+        time.sleep(delay/2)
+        fret1.on()
+        time.sleep(delay/5)
+        servoE.pick()
+        print("ServoE")
+        time.sleep(delay)
+        fret1.off()
 
-        # Append data to lists
-        times.append(current_time)
-        currents.append(current)
-        voltages.append(voltage)
+        time.sleep(delay/2)
+        fret2.on()
+        time.sleep(delay/2)
+        servoA.pick()
+        print("ServoA")
+        time.sleep(delay)
+        fret2.off()
 
-        print(
-            "Current: %.2f mA Voltage: %.2f V Power:%.2f mW"
-            % (current, voltage, power)
-        )
-        
-        time.sleep(1)
+        time.sleep(delay/2)
+        fret3.on()
+        time.sleep(delay/2)
+        servoD.pick()
+        print("ServoD")
+        time.sleep(delay)
+        fret3.off()
+
+        time.sleep(delay/2)
+        fret4.on()
+        time.sleep(delay/2)
+        servoG.pick()
+        print("ServoG")
+        time.sleep(delay)
+        fret4.off()
 
 except KeyboardInterrupt:
-    print("Program stopped by user. Saving data to file...")
+    print("Program stopped by user.")
+    plot_running = False
+    sensor_thread.join()
+    cleanup()
 
-    # Save data to a text file
-    with open("ina260_data.csv", "w") as f:
-        f.write("Time(s),Current(mA),Voltage(V)\n")
-        for t, c, v in zip(times, currents, voltages):
-            f.write(f"{t},{c},{v}\n")
-
-    print("Data saved to ina260_data.csv")
+except Exception as e:
+    print(f"An error occurred: {e}")
+    plot_running = False
+    sensor_thread.join()
+    cleanup()

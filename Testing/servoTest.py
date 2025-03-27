@@ -54,6 +54,8 @@ def moveRange():
 			
 try:
 	while True:
+		servoArr = [servoE,servoA, servoG, servoD]
+
 		#servo.value = 0
 		#count(10,75)
 		#sleep(1)

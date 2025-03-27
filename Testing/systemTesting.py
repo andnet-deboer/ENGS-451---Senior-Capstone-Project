@@ -166,19 +166,24 @@ def acceleratedBPM(startBpm=60, maxBpm=140, step=40, strokes=5, servo=servoA, se
         count(strokes, i, servo2, low_angle=LOW, high_angle=HIGH)
 try:
     while True:
-         #for i in range(1,1000000,1):
-              #   lib8relind.set(0, 4, 1)
-                # sleep(2)
-                 #lib8relind.set_all(0,0)
-                 #sleep(1)
-
-
+        
+        BPM = 400
         LOW = -30
         HIGH = 30
-        BPM = 260
+       # servoArr = [servoE,servoA, servoD, servoG]
+        servoArr = [servoG]
+        for i in servoArr:
+             count(1, BPM, i, low_angle=LOW, high_angle=HIGH)
+        # LOW = -30
+        # HIGH = 30
+        # BPM = 260
         #acceleratedBPM(300, 500, 5, 1, servoG,servoA)
         #acceleratedBPM(60, 200, 5, 1, servoA)
-        count(1000, BPM, servoA, low_angle=-65, high_angle=65)
+        #count(1, BPM, servoE, low_angle=-65, high_angle=65)
+        # count(1, BPM, servoA, low_angle=-65, high_angle=65)
+        # count(1, BPM, servoD, low_angle=-65, high_angle=65)
+        # count(1, BPM, servoG, low_angle=-65, high_angle=65)
+
 
         #count(1, BPM, servoG, low_angle=-30, high_angle=20)
         

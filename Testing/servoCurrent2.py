@@ -1,7 +1,5 @@
 #READ THIS! to run this code first run the command below:
 #sudo pigpiod
-import csv
-from queue import Full
 from gpiozero import Servo
 import lib8relind
 from gpiozero.pins.pigpio import PiGPIOFactory
@@ -16,12 +14,13 @@ import time
 import time
 import board
 import adafruit_ina260
+import threading
 
 
 # Import necessary libraries
 #from music21 import *
 import time
-from datetime import timedelta
+from datetime import datetime
 import concurrent.futures
 
 #  Servo Motor connnectios #
@@ -30,7 +29,7 @@ import concurrent.futures
 " Fret 2        |    |     |    |   "
 " Fret 3        |    |     |    |   "
 " Fret 4        |    |     |    |   "
-"              24   27    18  10   "
+"              24   18    27   10   "
 
 factory = PiGPIOFactory()
 initial_value = 0
@@ -109,9 +108,6 @@ fret1 = Relay(1)
 fret2 = Relay(2)
 fret3 = Relay(3)
 fret4 = Relay(4)
-fret0 = Relay(10) #open string
-damper = Relay(7)
-
 
 def relay_off(except_fret=None):
     if except_fret != fret1:
@@ -124,28 +120,24 @@ def relay_off(except_fret=None):
         fret4.off()
 
 class ServoController:
-    def __init__(self, pin, factory=factory, initial_value=0, LOW=-30, HIGH = 30,offset=0, name=None):
+    def __init__(self, pin, factory=factory, initial_value=0, name=None):
         self.name = name
         self.servo = Servo(pin, pin_factory=factory, initial_value=initial_value)
         self.pin = pin
-        self.state = True
-        self.low = LOW
-        self.high= HIGH
-        self.offset=offset
+        self.state = False
         
     def set_angle(self, angle):
         # Convert angle (-90 to 90) to value (-1 to 1)
-        self.servo.value = (angle+self.offset) / 90
+        self.servo.value = angle / 90
         
     def count(self, count, bpm, low_angle=-45, high_angle=-5):
-        """ Move the servo back and forth for a set count at a given BPM """
         cnt = 0
-        while cnt < count:
+        while count >= cnt:
             self.set_angle(low_angle)
-            sleep(60 / bpm)
+            sleep(60 / (1.0*bpm))
             cnt += 1
             self.set_angle(high_angle)
-            sleep(60 / bpm)
+            sleep(60 / (1.0*bpm))
             cnt += 1
 
     ''''
@@ -154,28 +146,28 @@ class ServoController:
     @param low   (low angle)
     @param high  (high angle)
     '''
-    def pick(self):
+    def pick(self,low, high):
         if (self.state):
-            self.set_angle(self.low)
+            self.set_angle(low)
             self.state = False
         else:
-            self.set_angle(self.high)
+            self.set_angle(high)
             self.state = True
             
     def detach(self):
         self.servo.detach()
         
     def zero(self):
-        self.servo.value = 0+self.offset
+        self.servo.value = 0
         
     def on(self):
         self.servo.value = 1
 
-#Initialize servos 
-servoG = ServoController(10, factory=factory, LOW=-15, HIGH=15, name='G')
-servoD = ServoController(24, factory=factory, LOW=-20, HIGH=20,offset=4, name='D')
-servoA = ServoController(27, factory=factory, LOW=-15, HIGH=15, name='A')
-servoE = ServoController(18, factory=factory, LOW=-15, HIGH=15, name='E')
+#Then initialize your servos like this:
+servoG = ServoController(10, name='G')
+servoD = ServoController(27, name='D')
+servoA = ServoController(18, name='A')
+servoE = ServoController(24, name='E')
 
 def detach_servos(except_servo=None):
     if except_servo != servoG:
@@ -215,42 +207,32 @@ def cleanup():
 
 def run_servo(servo):
     count(-1, bpm, servo)
-# Define the dictionary mapping notes to servos 
-#None indicates the open string
-note_mapping= {
-     #octave 2
-    'E': [servoE,None,2],
-    'F': [servoE,fret1,2],
-    'F#':[servoE,fret2,2],
-    'G': [servoE,fret3,2],
-    'G#':[servoE,fret4,2],
-    'A': [servoA, None,2],
-    'A#': [servoA,fret1,2],
-    'B': [servoA,fret2,2],
-    #octave3
-    'C': [servoA,fret3,3],
-    'C#': [servoA,fret4,3],
-    'D': [servoD, None,3],
-    'D#': [servoD,fret1,3],
-    'E': [servoD,fret2,3],
-    'F': [servoD,fret3,3],
-    'F#': [servoD,fret4,3],
-    'G': [servoG,None,3],
-    'G#': [servoG,fret1,3],
-    'A': [servoG,fret2,3],
-    'A#':[servoG,fret3,3],
-    'B': [servoG,fret4,3]
+# Define the dictionary mapping notes to servos
+note_servo_oct2 = {
+    'E': [servoE,0],
+    'F': [servoE,fret1],
+    'F#':[servoE,fret2],
+    'G': [servoE,fret3],
+    'G#':[servoE,fret4],
+    'A': [servoA,0],
+    'A#': [servoA,fret1],
+    'B': [servoA,fret2]
+    #One optio
 }
-
-def timePerBeat(bpm=120,timeSignature=4):
-    #check if BMP is spceified by musicXML file
-
-    #if not use default bpm of 120
-
-    #get the current time signature
-
-    return (60*timeSignature)/(4*bpm)
-    
+note_servo_oct3 = {
+    'C': [servoA,fret3],
+    'C#': [servoA,fret4],
+    'D': [servoD,0],
+    'D#': [servoD,fret1],
+    'E': [servoD,fret2],
+    'F': [servoD,fret3],
+    'F#': [servoD,fret4],
+    'G': [servoG,0],
+    'G#': [servoG,fret1],
+    'A': [servoG,fret2],
+    'A#':[servoG,fret3],
+    'B': [servoG,fret4]
+}
 
 ''' Play notes with increasing tempo'''
 def acceleratedBPM(startBpm=60, maxBpm=140, step=40, strokes=5, servo=servoA, servo2=servoG):
@@ -261,143 +243,102 @@ def acceleratedBPM(startBpm=60, maxBpm=140, step=40, strokes=5, servo=servoA, se
         count(strokes, i, servo, low_angle=LOW, high_angle=HIGH)
         count(strokes, i, servo2, low_angle=LOW, high_angle=HIGH)
 
-def chromaticScale(delay=0.6):
+def chromaticScale(delay=0.6,LOW=-30, HIGH=30):
         time.sleep(delay/2)
         fret1.on()
-        print("Fret1")
         time.sleep(delay/5)
-        servoE.pick()
+        servoE.pick(LOW,HIGH)
         print("ServoE")
         time.sleep(delay)
         fret1.off()
         
         time.sleep(delay/2)
         fret2.on()
-        print("Fret2")
         time.sleep(delay/2)
-        servoA.pick()
+        servoA.pick(LOW,HIGH)
         print("ServoA")
         time.sleep(delay)
         fret2.off()
 
         time.sleep(delay/2)
         fret3.on()
-        print("Fret3")
         time.sleep(delay/2)
-        servoD.pick()
+        servoD.pick(LOW,HIGH)
         print("ServoD")
         time.sleep(delay)
         fret3.off()
 
         time.sleep(delay/2)
         fret4.on()
-        print("Fret4")
         time.sleep(delay/2)
-        servoG.pick()
+        servoG.pick(LOW,HIGH)
         print("ServoG")
         time.sleep(delay)
         fret4.off()
 
+def log_current_sensor(filename="ina260_data.csv"):
+    sensor = CurrentSensor()
+    start = time.time()
+    with open(filename, "w") as f:
+        f.write("Time(s),Current(mA),Voltage(V)\n")
+        while logging_active:
+            try:
+                t = time.time() - start
+                current = sensor.current()
+                voltage = sensor.voltage()
+                f.write(f"{t:.3f},{current:.2f},{voltage:.2f}\n")
+                f.flush()
+                print(f"[LOG] Time: {t:.2f}s, Current: {current:.2f}mA, Voltage: {voltage:.2f}V")
+                time.sleep(0.2)
+            except Exception as e:
+                print(f"[LOG ERROR] {e}")
+
 # Convert the file to a stream
-#parsed_work = converter.parse('ChromaticScale.xml')
+parsed_work = converter.parse('ChromaticScale.xml')
 
-def save_to_csv_with_timing(musicFile="7NationArmy.xml", filename="output_with_timing.csv"):
-    parsed_work = converter.parse(musicFile)
-    # Depth-first search traversal
-    recurse_work = parsed_work.recurse().notesAndRests
-    # Initialize time
-    trackTime = 0
-    note_matrix = []
+# Depth-first search traversal
+recurse_work = parsed_work.recurse()
 
-    with open(filename, mode='w', newline='') as file:
-        writer = csv.writer(file)
-        writer.writerow(["Element", "Note/Rest", "Start Time", "End Time", "Duration"])  # Write the header row
-        for element in recurse_work:
-            if element.isNote:
-                start_time = timedelta(seconds=trackTime)
-                duration = element.duration.quarterLength * timePerBeat()
-                trackTime += duration
-                end_time = timedelta(seconds=trackTime)
-                row = [element, element.name + str(element.octave), str(start_time), str(end_time), duration]
-                writer.writerow(row)
-                note_matrix.append(row)
-            else:
-                start_time = timedelta(seconds=trackTime)
-                duration = element.duration.quarterLength * timePerBeat()
-                trackTime += duration
-                end_time = timedelta(seconds=trackTime)
-                row = [element, element.name, str(start_time), str(end_time), duration]
-                writer.writerow(row)
-                note_matrix.append(row)
-
-    return note_matrix
-
-# Call the function and get the note matrix
-note_matrix = save_to_csv_with_timing()
-
-
-
+# Create a list to store the notes in chronological order
 notes_in_chronological_order = []
 
-# # Iterate through all note objects in the score and add them to the list
-# for element in recurse_work.notes:
-#     notes_in_chronological_order.append(element)
+# Iterate through all note objects in the score and add them to the list
+for element in recurse_work.notes:
+    notes_in_chronological_order.append(element)
 
-# # Sort the notes by their start times
-# notes_in_chronological_order.sort(key=lambda note: note.offset)
-# #parsed_work.plot()
+# Sort the notes by their start times
+notes_in_chronological_order.sort(key=lambda note: note.offset)
+#parsed_work.plot()
 # Iterate through the sorted notes and play them at their respective start times
 
-# bpm = setBPM()
+
 try:
-    while True:
-  
-
-        LOW = -30
-        HIGH = 30 
-        BPM = 120
-
-        #Initalize 
-        
-        chromaticScale(1)
-     
-        # for i in range(len(note_matrix) - 1):  # Iterate up to the second-to-last row
-        #     current_row = note_matrix[i]
-        #     next_row = note_matrix[i + 1]  # Access the next row
-
-        #     note = current_row[0]
-        #     current_time = current_row[2]
-        #     next_time = next_row[2]  # Access a value from the next row
-        #     print("Current Time: " + current_time + ", Next Time: " + next_time)
-        #     duration = current_row[4]
-
-        #     if note.isNote:
-        #         note.octave = note.octave + 1  # Shift octave
-
-        #         #All non open string notes
-        #         if note_mapping[note.name][1] is not None:
-        #             relay_off(note_mapping[note.name][1])  # Unfret all other frets
-        #             note_mapping[note.name][1].on()  # Fret the note
-        #             note_mapping[note.name][0].pick()  # Pick the note
-        #             time.sleep(duration)
-        #         #Open string notes
-        #         elif note_mapping[note.name][1] is None:
-        #             lib8relind.set_all(0, 0)
-        #             note_mapping[note.name][0].pick()  # Pick the note
-        #         else:
-        #             lib8relind.set_all(0, 0)
-        #             note_mapping[note.name][0].pick()
-        #         time.sleep(duration)
-        #     else:
-        #         time.sleep(duration)
-
-
+    # Create timestamped filename
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    filename = f"ina260_data_{timestamp}.csv"
     
+    # Start the logger thread
+    logging_active = True
+    log_thread = threading.Thread(target=log_current_sensor, args=(filename,))
+    log_thread.start()
 
-except KeyboardInterrupt:
-    print("Program stopped")
-    cleanup()
+    try:
+        while True:
+            # Play the solenoid sequence
+            chromaticScale()
+
+            # Optionally loop the scale or wait here
+            # time.sleep(5)  # Give logger time after playing
+
+    except KeyboardInterrupt:
+        print("Interrupted by user.")
+        logging_active = False
+        log_thread.join()
+
+    finally:
+        cleanup()
+        print("Exited cleanly.")
 
 except Exception as e:
-    print(f"An error occurred: {e}")
+    print(f"An unexpected error occurred: {e}")
     cleanup()
