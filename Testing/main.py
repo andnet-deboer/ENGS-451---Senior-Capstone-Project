@@ -30,7 +30,7 @@ import concurrent.futures
 " Fret 2        |    |     |    |   "
 " Fret 3        |    |     |    |   "
 " Fret 4        |    |     |    |   "
-"              24   27    18  10   "
+"              24   27    18   10   "
 
 factory = PiGPIOFactory()
 initial_value = 0
@@ -172,10 +172,10 @@ class ServoController:
         self.servo.value = 1
 
 #Initialize servos 
-servoG = ServoController(10, factory=factory, LOW=-15, HIGH=15, name='G')
+servoG = ServoController(10, factory=factory, LOW=-25, HIGH=25,offset=10, name='G')
 servoD = ServoController(24, factory=factory, LOW=-20, HIGH=20,offset=4, name='D')
 servoA = ServoController(27, factory=factory, LOW=-15, HIGH=15, name='A')
-servoE = ServoController(18, factory=factory, LOW=-15, HIGH=15, name='E')
+servoE = ServoController(18, factory=factory, LOW=-25, HIGH=25, name='E')
 
 def detach_servos(except_servo=None):
     if except_servo != servoG:
@@ -217,29 +217,27 @@ def run_servo(servo):
     count(-1, bpm, servo)
 # Define the dictionary mapping notes to servos 
 #None indicates the open string
-note_mapping= {
-     #octave 2
-    'E': [servoE,None,2],
-    'F': [servoE,fret1,2],
-    'F#':[servoE,fret2,2],
-    'G': [servoE,fret3,2],
-    'G#':[servoE,fret4,2],
-    'A': [servoA, None,2],
-    'A#': [servoA,fret1,2],
-    'B': [servoA,fret2,2],
-    #octave3
-    'C': [servoA,fret3,3],
-    'C#': [servoA,fret4,3],
-    'D': [servoD, None,3],
-    'D#': [servoD,fret1,3],
-    'E': [servoD,fret2,3],
-    'F': [servoD,fret3,3],
-    'F#': [servoD,fret4,3],
-    'G': [servoG,None,3],
-    'G#': [servoG,fret1,3],
-    'A': [servoG,fret2,3],
-    'A#':[servoG,fret3,3],
-    'B': [servoG,fret4,3]
+note_mapping = {
+    ('E', 2): [servoE, None],
+    ('F', 2): [servoE, fret1],
+    ('F#', 2): [servoE, fret2],
+    ('G', 2): [servoE, fret3],
+    ('G#', 2): [servoE, fret4],
+    ('A', 2): [servoA, None],
+    ('A#', 2): [servoA, fret1],
+    ('B', 2): [servoA, fret2],
+    ('C', 3): [servoA, fret3],
+    ('C#', 3): [servoA, fret4],
+    ('D', 3): [servoD, None],
+    ('D#', 3): [servoD, fret1],
+    ('E', 3): [servoD, fret2],
+    ('F', 3): [servoD, fret3],
+    ('F#', 3): [servoD, fret4],
+    ('G', 3): [servoG, None],
+    ('G#', 3): [servoG, fret1],
+    ('A', 3): [servoG, fret2],
+    ('A#', 3): [servoG, fret3],
+    ('B', 3): [servoG, fret4]
 }
 
 def timePerBeat(bpm=120,timeSignature=4):
@@ -249,7 +247,8 @@ def timePerBeat(bpm=120,timeSignature=4):
 
     #get the current time signature
 
-    return (60*timeSignature)/(4*bpm)
+    #return (2*60*timeSignature)/(4*bpm)
+    return (2*60*timeSignature)/(4*bpm)
     
 
 ''' Play notes with increasing tempo'''
@@ -333,8 +332,8 @@ def save_to_csv_with_timing(musicFile="7NationArmy.xml", filename="output_with_t
     return note_matrix
 
 # Call the function and get the note matrix
+#note_matrix = save_to_csv_with_timing("ChromaticScale.xml", "output_with_timing.csv")
 note_matrix = save_to_csv_with_timing()
-
 
 
 notes_in_chronological_order = []
@@ -348,6 +347,37 @@ notes_in_chronological_order = []
 # #parsed_work.plot()
 # Iterate through the sorted notes and play them at their respective start times
 
+
+def play_notes(note_matrix):
+  for i in range(len(note_matrix) - 1):  # Iterate up to the second-to-last row
+            current_row = note_matrix[i]
+            next_row = note_matrix[i + 1]  # Access the next row
+
+            note = current_row[0]
+            if note.isNote:
+                 octave = current_row[0].octave+1
+            else:
+                octave = 0
+           
+            current_time = current_row[2]
+            next_time = next_row[2]  # Access a value from the next row
+            duration = current_row[4]
+
+            if note.isNote:
+                #All non open string notes
+                if note_mapping[note.name,octave][1] is not None:
+                    relay_off(note_mapping[note.name,octave][1])  # Unfret all other frets
+                    note_mapping[note.name,octave][1].on()  # Fret the note
+                    note_mapping[note.name,octave][0].pick()  # Pick the note
+                #Open string notes
+                elif note_mapping[note.name,octave][1] is None:
+                    lib8relind.set_all(0, 0)
+                    note_mapping[note.name,octave][0].pick()  # Pick the note
+                time.sleep(duration)
+            else:
+                time.sleep(duration)
+                lib8relind.set_all(0, 0)
+
 # bpm = setBPM()
 try:
     while True:
@@ -359,37 +389,19 @@ try:
 
         #Initalize 
         
-        chromaticScale(1)
+        #chromaticScale(1)
+        play_notes(note_matrix)
+        #servoG.pick()
+        #time.sleep(1)
      
-        # for i in range(len(note_matrix) - 1):  # Iterate up to the second-to-last row
-        #     current_row = note_matrix[i]
-        #     next_row = note_matrix[i + 1]  # Access the next row
+        # note_mapping['E'][1].on()  # Fret the note
+        # note_mapping['E'][0].pick()  # Pick the note
+        # time.sleep(1)
+        # note_mapping['E'][1].off()
+        # time.sleep(1)
 
-        #     note = current_row[0]
-        #     current_time = current_row[2]
-        #     next_time = next_row[2]  # Access a value from the next row
-        #     print("Current Time: " + current_time + ", Next Time: " + next_time)
-        #     duration = current_row[4]
-
-        #     if note.isNote:
-        #         note.octave = note.octave + 1  # Shift octave
-
-        #         #All non open string notes
-        #         if note_mapping[note.name][1] is not None:
-        #             relay_off(note_mapping[note.name][1])  # Unfret all other frets
-        #             note_mapping[note.name][1].on()  # Fret the note
-        #             note_mapping[note.name][0].pick()  # Pick the note
-        #             time.sleep(duration)
-        #         #Open string notes
-        #         elif note_mapping[note.name][1] is None:
-        #             lib8relind.set_all(0, 0)
-        #             note_mapping[note.name][0].pick()  # Pick the note
-        #         else:
-        #             lib8relind.set_all(0, 0)
-        #             note_mapping[note.name][0].pick()
-        #         time.sleep(duration)
-        #     else:
-        #         time.sleep(duration)
+     
+      
 
 
     

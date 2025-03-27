@@ -48,10 +48,10 @@ increment  = 0.05
 start_time = time.time()
 
 class CurrentSensor:
-    def __init__(self):
+    def __init__(self,address):
         self.i2c = board.I2C()  # uses board.SCL and board.SDA
         # i2c = board.STEMMA_I2C()  # For using the built-in STEMMA QT connector on a microcontroller
-        self.ina260 = adafruit_ina260.INA260(self.i2c)
+        self.ina260 = adafruit_ina260.INA260(self.i2c,address=address)
         # Initialize lists to store data
         self.times = []
         self.currents = []
@@ -276,16 +276,18 @@ def chromaticScale(delay=0.6,LOW=-30, HIGH=30):
         time.sleep(delay)
         fret4.off()
 
-def log_current_sensor(filename="ina260_data.csv"):
-    sensor = CurrentSensor()
+def log_current_sensor(filename="ina260_data_fretCurrentSensor.csv"):
+    fretCurrentSensor = CurrentSensor(0x44)
+    damperCurrentSensor = CurrentSensor(0x41)
+    servoCurrentSensor = CurrentSensor(0x40)
     start = time.time()
     with open(filename, "w") as f:
         f.write("Time(s),Current(mA),Voltage(V)\n")
         while logging_active:
             try:
                 t = time.time() - start
-                current = sensor.current()
-                voltage = sensor.voltage()
+                current = fretCurrentSensor.current()
+                voltage = fretCurrentSensor.voltage()
                 f.write(f"{t:.3f},{current:.2f},{voltage:.2f}\n")
                 f.flush()
                 print(f"[LOG] Time: {t:.2f}s, Current: {current:.2f}mA, Voltage: {voltage:.2f}V")
@@ -312,33 +314,31 @@ notes_in_chronological_order.sort(key=lambda note: note.offset)
 # Iterate through the sorted notes and play them at their respective start times
 
 
+
+# Create timestamped filename
+timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+filename = f"ina260_data_new_{timestamp}.csv"
+
+# Start the logger thread
+logging_active = True
+log_thread = threading.Thread(target=log_current_sensor, args=(filename,))
+log_thread.start()
+
 try:
-    # Create timestamped filename
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    filename = f"ina260_data_{timestamp}.csv"
-    
-    # Start the logger thread
-    logging_active = True
-    log_thread = threading.Thread(target=log_current_sensor, args=(filename,))
-    log_thread.start()
+    while True:
+        # Play the solenoid sequence
+        chromaticScale()
 
-    try:
-        while True:
-            # Play the solenoid sequence
-            chromaticScale()
+        # Optionally loop the scale or wait here
+        # time.sleep(5)  # Give logger time after playing
 
-            # Optionally loop the scale or wait here
-            # time.sleep(5)  # Give logger time after playing
+except KeyboardInterrupt:
+    print("Interrupted by user.")
+    logging_active = False
+    log_thread.join()  # Ensure the logger thread finishes before exiting
 
-    except KeyboardInterrupt:
-        print("Interrupted by user.")
-        logging_active = False
-        log_thread.join()
-
-    finally:
-        cleanup()
-        print("Exited cleanly.")
-
-except Exception as e:
-    print(f"An unexpected error occurred: {e}")
+finally:
     cleanup()
+    print(f"Data saved to {filename}")
+    print("Exited cleanly.")
+
