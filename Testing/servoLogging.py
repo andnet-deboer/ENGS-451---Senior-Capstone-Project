@@ -5,6 +5,7 @@ import lib8relind
 from gpiozero.pins.pigpio import PiGPIOFactory
 from time import sleep
 import time
+import os
 import numpy as np
 import lib8relind
 import RPi.GPIO as GPIO
@@ -15,6 +16,10 @@ import time
 import board
 import adafruit_ina260
 import threading
+import matplotlib.pyplot as plt
+from matplotlib.animation import FuncAnimation
+from collections import deque
+
 
 
 # Import necessary libraries
@@ -122,11 +127,14 @@ def relay_off(except_fret=None):
         fret4.off()
 
 class ServoController:
-    def __init__(self, pin, factory=factory, initial_value=0, name=None):
+    def __init__(self, pin, factory=factory, initial_value=0, name=None, LOW=-30, HIGH=30, offset=0):
         self.name = name
-        self.servo = Servo(pin, pin_factory=factory, initial_value=initial_value)
         self.pin = pin
-        self.state = False
+        self.state = True
+        self.servo = Servo(pin, pin_factory=factory, initial_value=initial_value)
+        self.low = LOW
+        self.high= HIGH
+        self.offset=offset
         
     def set_angle(self, angle):
         # Convert angle (-90 to 90) to value (-1 to 1)
@@ -148,14 +156,32 @@ class ServoController:
     @param low   (low angle)
     @param high  (high angle)
     '''
-    def pick(self,low, high):
+    def pick(self):
         if (self.state):
-            self.set_angle(low)
+            self.set_angle(self.low)
             self.state = False
         else:
-            self.set_angle(high)
+            self.set_angle(self.high)
             self.state = True
-            
+
+    def pickWithDamp(self, current_stream, threshold=2000, timeout=2.0, poll_interval=0.01):
+        start = time.time()
+        while (time.time() - start) < timeout:
+            if len(current_stream) >= 2:
+                recent_values = list(current_stream)[-2:]
+                if any(c > threshold for c in recent_values):
+                    print(f"[{self.name}] Spike detected, picking")
+                    if self.state:
+                        self.set_angle(self.low)
+                        self.state = False
+                    else:
+                        self.set_angle(self.high)
+                        self.state = True
+                    return
+            time.sleep(poll_interval)
+        print(f"[{self.name} WARNING] No spike detected in {timeout}s.")
+
+      
     def detach(self):
         self.servo.detach()
         
@@ -278,41 +304,145 @@ def chromaticScale(delay=0.6,LOW=-30, HIGH=30):
         time.sleep(delay)
         fret4.off()
 
-def log_current_sensor(filename="ina260_data_fretCurrentSensor.csv", sample_rate=100.0):
-    fretCurrentSensor = CurrentSensor(0x44)
-    damperCurrentSensor = CurrentSensor(0x41)
-    servoCurrentSensor = CurrentSensor(0x40)
+def log_sensor_values(sensor, label, rate, start_time, data_dict, data_lock, current_stream=None):
+    period = 1.0 / rate
+    while logging_active:
+        loop_start = time.time()
+        try:
+            t = loop_start - start_time
+            current = sensor.current()
+            voltage = sensor.voltage()
 
-    period = 1.0 / sample_rate
+            with data_lock:
+                data_dict[label] = (t, current, voltage)
+            if current_stream is not None:
+                current_stream.append(current)
+        except Exception as e:
+            print(f"[{label} ERROR] {e}")
+
+        elapsed = time.time() - loop_start
+        sleep_time = period - elapsed
+        if sleep_time > 0:
+            time.sleep(sleep_time)
+
+
+
+def start_logging_multirate(filename="ina260_multicolumn.csv"):
+    fret_sensor = CurrentSensor(0x44)
+    damper_sensor = CurrentSensor(0x41)
+    servo_sensor = CurrentSensor(0x40)
+
+    global logging_active
+    logging_active = True
     start = time.time()
-    fretted = 0
 
-    with open(filename, "w") as f:
-        f.write("Time(s),Current(mA),Voltage(V),FretDown\n")
+    data_lock = threading.Lock()
+    sensor_data = {}
 
+    file_handle = open(filename, "w")
+    file_handle.write("Time(s),Fret_Current(mA),Fret_Voltage(V),Damper_Current(mA),Damper_Voltage(V),Pick_Current(mA),Pick_Voltage(V)\n")
+
+    def csv_writer():
         while logging_active:
-            loop_start = time.time()
-            try:
-                t = loop_start - start
-                current = fretCurrentSensor.current()
-                voltage = fretCurrentSensor.voltage()
-                if (current > 2000):
-                    fretted = 1
-                else:
-                    fretted = 0
-                f.write(f"{t:.3f},{current:.2f},{voltage:.2f},{fretted}\n")
-                f.flush()
-                print(f"[LOG] Time: {t:.2f}s, Current: {current:.2f}mA, Voltage: {voltage:.2f}V")
-            except Exception as e:
-                print(f"[LOG ERROR] {e}")
-            
-            # Enforce consistent sample rate
-            elapsed = time.time() - loop_start
-            sleep_time = period - elapsed
-            if sleep_time > 0:
-                time.sleep(sleep_time)
-            else:
-                print(f"[WARN] Sample overran by {-sleep_time:.3f}s")
+            with data_lock:
+                fret = sensor_data.get("FRET", (None, None, None))
+                damper = sensor_data.get("DAMPER", (None, None, None))
+                pick = sensor_data.get("PICK", (None, None, None))
+                t = time.time() - start
+                line = f"{t:.3f}," \
+                       f"{fret[1] if fret[1] else ''},{fret[2] if fret[2] else ''}," \
+                       f"{damper[1] if damper[1] else ''},{damper[2] if damper[2] else ''}," \
+                       f"{pick[1] if pick[1] else ''},{pick[2] if pick[2] else ''}\n"
+                file_handle.write(line)
+                file_handle.flush()
+            time.sleep(0.01)  # log at ~100Hz to capture updates from any sensor
+
+    threads = [
+        threading.Thread(target=log_sensor_values, args=(fret_sensor, "FRET", 100, start, sensor_data, data_lock, fret_current_stream)),
+        threading.Thread(target=log_sensor_values, args=(damper_sensor, "DAMPER", 100, start, sensor_data, data_lock)),
+        threading.Thread(target=log_sensor_values, args=(servo_sensor, "PICK", 20, start, sensor_data, data_lock)),
+        threading.Thread(target=csv_writer)
+    ]
+
+    for t in threads:
+        t.start()
+
+    return threads, file_handle
+
+def stop_logging(threads, file_handle):
+    global logging_active
+    logging_active = False
+    for t in threads:
+        t.join()
+    file_handle.close()
+    print("Logging stopped and file saved.")
+
+
+def live_plot_multirate(window_duration=10, interval=50):
+    """
+    Live plot of current readings for FRET, DAMPER, and PICK sensors.
+    
+    :param window_duration: seconds to show in the sliding window
+    :param interval: update interval in milliseconds
+    """
+    fret_sensor = CurrentSensor(0x44)
+    damper_sensor = CurrentSensor(0x41)
+    pick_sensor = CurrentSensor(0x40)
+
+    # Data storage
+    time_vals = deque()
+    fret_vals = deque()
+    damper_vals = deque()
+    pick_vals = deque()
+
+    start = time.time()
+
+    # Setup plot
+    fig, ax = plt.subplots()
+    line_fret, = ax.plot([], [], label='FRET', lw=2)
+    line_damper, = ax.plot([], [], label='DAMPER', lw=2)
+    line_pick, = ax.plot([], [], label='PICK', lw=2)
+
+    ax.set_ylim(0, 6000)  # Adjust as needed
+    ax.set_title("Live Current Readings (INA260)")
+    ax.set_xlabel("Time (s)")
+    ax.set_ylabel("Current (mA)")
+    ax.legend(loc="upper right")
+    ax.grid(True)
+
+    def update(frame):
+        now = time.time() - start
+        try:
+            fret = fret_sensor.current()
+            damper = damper_sensor.current()
+            pick = pick_sensor.current()
+
+            time_vals.append(now)
+            fret_vals.append(fret)
+            damper_vals.append(damper)
+            pick_vals.append(pick)
+
+            # Remove old values beyond the window
+            while time_vals and (now - time_vals[0]) > window_duration:
+                time_vals.popleft()
+                fret_vals.popleft()
+                damper_vals.popleft()
+                pick_vals.popleft()
+
+            line_fret.set_data(time_vals, fret_vals)
+            line_damper.set_data(time_vals, damper_vals)
+            line_pick.set_data(time_vals, pick_vals)
+
+            ax.set_xlim(max(0, now - window_duration), now)
+
+        except Exception as e:
+            print(f"[Plot ERROR] {e}")
+
+        return line_fret, line_damper, line_pick
+
+    ani = FuncAnimation(fig, update, interval=interval, blit=False)
+    plt.show()
+
 
 # Convert the file to a stream
 parsed_work = converter.parse('ChromaticScale.xml')
@@ -335,33 +465,50 @@ notes_in_chronological_order.sort(key=lambda note: note.offset)
 
 
 # Create timestamped filename
+# Ensure LogFiles directory exists
+log_dir = "LogFiles"
+os.makedirs(log_dir, exist_ok=True)
+
+# Create timestamped filename in the directory
 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-filename = f"ina260_data_new_{timestamp}.csv"
+filename = os.path.join(log_dir, f"ina260_multirate_{timestamp}.csv")
 
-# Start the logger thread
-logging_active = True
-log_thread = threading.Thread(target=log_current_sensor, args=(filename,))
-log_thread.start()
+fret_current_stream = deque(maxlen=20)  # keeps the last 100 samples
+threads, file_handle = start_logging_multirate(filename)
 
-try:
+def multi_pick(servo, current_stream, times=3, threshold=2000, delay_after_pick=0.3):
+    for i in range(times):
+        print(f"[MultiPick] Waiting for spike {i+1}/{times}")
+        servo.pickWithDamp(current_stream, threshold)
+        print(f"[MultiPick] Pick {i+1} complete")
+        time.sleep(delay_after_pick)  # allow servo to complete motion before next pick
+
+
+def motion_sequence():
     while True:
-        # Play the solenoid sequence
-        #chromaticScale()
-        fret1.on()
-        time.sleep(0.1)
-        fret1.off()
-        time.sleep(0.1)
+        print("[Motion] Starting step...")
+        fret3.on()
 
-        # Optionally loop the scale or wait here
-        # time.sleep(5)  # Give logger time after playing
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            future = executor.submit(multi_pick, servoG, fret_current_stream, 3, 2000)
+            future.result()  # Wait until all picks are done
+
+        print("[Motion] All picks complete. Turning off fret.")
+        fret3.off()
+
+# Run motion sequence in its own thread so live plot etc. continues
+motion_thread = threading.Thread(target=motion_sequence, daemon=True)
+motion_thread.start()
+
+try: 
+        # Keep main thread alive
+        while True:
+            time.sleep(0.5)
 
 except KeyboardInterrupt:
-    print("Interrupted by user.")
-    logging_active = False
-    log_thread.join()  # Ensure the logger thread finishes before exiting
-
+        print("Interrupted by user.")
 finally:
-    cleanup()
-    print(f"Data saved to {filename}")
-    print("Exited cleanly.")
-
+        stop_logging(threads, file_handle)
+        cleanup()
+        print(f"Data saved to {filename}")
+        print("Exited cleanly.") 
