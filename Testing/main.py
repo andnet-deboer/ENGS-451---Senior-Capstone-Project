@@ -105,12 +105,11 @@ def count(count, bpm, servo, low_angle=-45, high_angle=-5):
         cnt += 1
 
 #Then initialize your servos like this:
-fret1 = Relay(1)
-fret2 = Relay(2)
-fret3 = Relay(3)
-fret4 = Relay(4)
-fret0 = Relay(10) #open string
-damper = Relay(7)
+fret1 = Relay(3)
+fret2 = Relay(1)
+fret3 = Relay(4)
+fret4 = Relay(2)
+damper = Relay(5)
 
 
 def relay_off(except_fret=None):
@@ -248,7 +247,7 @@ def timePerBeat(bpm=120,timeSignature=4):
     #get the current time signature
 
     #return (2*60*timeSignature)/(4*bpm)
-    return (2*60*timeSignature)/(4*bpm)
+    return (60*timeSignature)/(4*bpm)
     
 
 ''' Play notes with increasing tempo'''
@@ -333,6 +332,8 @@ def save_to_csv_with_timing(musicFile="7NationArmy.xml", filename="output_with_t
 
 # Call the function and get the note matrix
 #note_matrix = save_to_csv_with_timing("ChromaticScale.xml", "output_with_timing.csv")
+#note_matrix = save_to_csv_with_timing("Queen-_Another_one_bites_the_dust_-__grade_1.xml", "output_with_timing.csv")
+note_matrix = save_to_csv_with_timing("7NationArmy.xml", "output_with_timing.csv")
 note_matrix = save_to_csv_with_timing()
 
 
@@ -367,16 +368,22 @@ def play_notes(note_matrix):
                 #All non open string notes
                 if note_mapping[note.name,octave][1] is not None:
                     relay_off(note_mapping[note.name,octave][1])  # Unfret all other frets
+                    #damper.on()  # Fret the note
+                    #time.sleep(0.2)
                     note_mapping[note.name,octave][1].on()  # Fret the note
+                    #damper.off()  # UnFret the note
                     note_mapping[note.name,octave][0].pick()  # Pick the note
                 #Open string notes
                 elif note_mapping[note.name,octave][1] is None:
-                    lib8relind.set_all(0, 0)
+                    lib8relind.set_all(0, 0) #Turn off all frets
                     note_mapping[note.name,octave][0].pick()  # Pick the note
                 time.sleep(duration)
+                #damper.off()
             else:
+                #damper.off()
                 time.sleep(duration)
-                lib8relind.set_all(0, 0)
+                lib8relind.set_all(0, 0)#Turn off all frets
+                
 
 # bpm = setBPM()
 try:
@@ -390,7 +397,15 @@ try:
         #Initalize 
         
         #chromaticScale(1)
-        play_notes(note_matrix)
+        #play_notes(note_matrix)
+        fret1.on()
+        time.sleep(4)
+        fret1.off()
+        time.sleep(1)
+        fret2.on()
+        time.sleep(4)
+        fret2.off()
+        time.sleep(1)
         #servoG.pick()
         #time.sleep(1)
      

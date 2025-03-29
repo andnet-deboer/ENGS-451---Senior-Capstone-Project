@@ -104,10 +104,12 @@ def count(count, bpm, servo, low_angle=-45, high_angle=-5):
         cnt += 1
 
 #Then initialize your servos like this:
-fret1 = Relay(1)
-fret2 = Relay(2)
-fret3 = Relay(3)
-fret4 = Relay(4)
+#Then initialize your servos like this:
+fret1 = Relay(3)
+fret2 = Relay(1)
+fret3 = Relay(4)
+fret4 = Relay(2)
+damper = Relay(5)
 
 def relay_off(except_fret=None):
     if except_fret != fret1:
@@ -276,24 +278,41 @@ def chromaticScale(delay=0.6,LOW=-30, HIGH=30):
         time.sleep(delay)
         fret4.off()
 
-def log_current_sensor(filename="ina260_data_fretCurrentSensor.csv"):
+def log_current_sensor(filename="ina260_data_fretCurrentSensor.csv", sample_rate=100.0):
     fretCurrentSensor = CurrentSensor(0x44)
     damperCurrentSensor = CurrentSensor(0x41)
     servoCurrentSensor = CurrentSensor(0x40)
+
+    period = 1.0 / sample_rate
     start = time.time()
+    fretted = 0
+
     with open(filename, "w") as f:
-        f.write("Time(s),Current(mA),Voltage(V)\n")
+        f.write("Time(s),Current(mA),Voltage(V),FretDown\n")
+
         while logging_active:
+            loop_start = time.time()
             try:
-                t = time.time() - start
+                t = loop_start - start
                 current = fretCurrentSensor.current()
                 voltage = fretCurrentSensor.voltage()
-                f.write(f"{t:.3f},{current:.2f},{voltage:.2f}\n")
+                if (current > 2000):
+                    fretted = 1
+                else:
+                    fretted = 0
+                f.write(f"{t:.3f},{current:.2f},{voltage:.2f},{fretted}\n")
                 f.flush()
                 print(f"[LOG] Time: {t:.2f}s, Current: {current:.2f}mA, Voltage: {voltage:.2f}V")
-                time.sleep(0.2)
             except Exception as e:
                 print(f"[LOG ERROR] {e}")
+            
+            # Enforce consistent sample rate
+            elapsed = time.time() - loop_start
+            sleep_time = period - elapsed
+            if sleep_time > 0:
+                time.sleep(sleep_time)
+            else:
+                print(f"[WARN] Sample overran by {-sleep_time:.3f}s")
 
 # Convert the file to a stream
 parsed_work = converter.parse('ChromaticScale.xml')
@@ -327,7 +346,11 @@ log_thread.start()
 try:
     while True:
         # Play the solenoid sequence
-        chromaticScale()
+        #chromaticScale()
+        fret1.on()
+        time.sleep(0.1)
+        fret1.off()
+        time.sleep(0.1)
 
         # Optionally loop the scale or wait here
         # time.sleep(5)  # Give logger time after playing
