@@ -45,7 +45,7 @@ def motion_sequence():
         bass.fret4.on()
         
         with concurrent.futures.ThreadPoolExecutor() as executor:
-            future = executor.submit(multi_pick, bass.servoG, fret_current_stream, 1, 3000)
+            future = executor.submit(multi_pick, bass.servoD, fret_current_stream, 6, 3000)
             future.result()
 
         print("[Motion] All picks complete. Turning off fret.")

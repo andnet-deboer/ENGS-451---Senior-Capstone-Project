@@ -3,6 +3,14 @@ from servo import ServoController
 from gpiozero.pins.pigpio import PiGPIOFactory
 
 class Bass:
+    #  Servo Motor connnections #
+    "               E    A     D    G"
+    " Fret 1        |    |     |    |   "
+    " Fret 2        |    |     |    |   "
+    " Fret 3        |    |     |    |   "
+    " Fret 4        |    |     |    |   "
+    "              24   27    18   10   "
+
     def __init__(self, factory=PiGPIOFactory()):
         # Create relays
         self.fret1 = Relay(3)

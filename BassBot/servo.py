@@ -26,7 +26,12 @@ class ServoController:
             self.set_angle(high_angle)
             sleep(60 / (1.0 * bpm))
             cnt += 1
-
+    ''''
+    PICK A STRING
+    @param state (low=0) (high=1)
+    @param low   (low angle)
+    @param high  (high angle)
+    '''
     def pick(self):
         if self.state:
             self.set_angle(self.low)
@@ -51,8 +56,20 @@ class ServoController:
     def detach(self):
         self.servo.detach()
 
+    def detach_servos(except_servo=None):
+        if except_servo != servoG:
+            servoG.detach()
+        if except_servo != servoD:
+            servoD.detach()
+        if except_servo != servoA:
+            servoA.detach()
+        if except_servo != servoE:
+            servoE.detach()
+
     def zero(self):
         self.servo.value = 0
 
     def on(self):
         self.servo.value = 1
+
+  
