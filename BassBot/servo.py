@@ -56,16 +56,6 @@ class ServoController:
     def detach(self):
         self.servo.detach()
 
-    def detach_servos(except_servo=None):
-        if except_servo != servoG:
-            servoG.detach()
-        if except_servo != servoD:
-            servoD.detach()
-        if except_servo != servoA:
-            servoA.detach()
-        if except_servo != servoE:
-            servoE.detach()
-
     def zero(self):
         self.servo.value = 0
 

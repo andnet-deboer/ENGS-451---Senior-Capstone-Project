@@ -44,10 +44,13 @@ def log_sensor_values(sensor, label, rate, start_time, data_dict, data_lock, cur
             time.sleep(sleep_time)
 
 
-def start_logging_multirate(filename="ina260_multicolumn.csv", fret_current_stream=None):
+def start_logging_multirate(filename="ina260_multicolumn.csv",
+                            fret_current_stream=None,
+                            damper_current_stream=None,
+                            pick_current_stream=None):
     fret_sensor = CurrentSensor(0x44)
     damper_sensor = CurrentSensor(0x41)
-    servo_sensor = CurrentSensor(0x40)
+    pick_sensor = CurrentSensor(0x40)
 
     global logging_active
     logging_active = True
@@ -67,17 +70,17 @@ def start_logging_multirate(filename="ina260_multicolumn.csv", fret_current_stre
                 pick = sensor_data.get("PICK", (None, None, None))
                 t = time.time() - start
                 line = f"{t:.3f}," \
-                       f"{fret[1] if fret[1] else ''},{fret[2] if fret[2] else ''}," \
-                       f"{damper[1] if damper[1] else ''},{damper[2] if damper[2] else ''}," \
-                       f"{pick[1] if pick[1] else ''},{pick[2] if pick[2] else ''}\n"
+                       f"{fret[1] if fret[1] is not None else ''},{fret[2] if fret[2] is not None else ''}," \
+                       f"{damper[1] if damper[1] is not None else ''},{damper[2] if damper[2] is not None else ''}," \
+                       f"{pick[1] if pick[1] is not None else ''},{pick[2] if pick[2] is not None else ''}\n"
                 file_handle.write(line)
                 file_handle.flush()
             time.sleep(0.01)
 
     threads = [
         threading.Thread(target=log_sensor_values, args=(fret_sensor, "FRET", 100, start, sensor_data, data_lock, fret_current_stream)),
-        threading.Thread(target=log_sensor_values, args=(damper_sensor, "DAMPER", 100, start, sensor_data, data_lock)),
-        threading.Thread(target=log_sensor_values, args=(servo_sensor, "PICK", 20, start, sensor_data, data_lock)),
+        threading.Thread(target=log_sensor_values, args=(damper_sensor, "DAMPER", 100, start, sensor_data, data_lock, damper_current_stream)),
+        threading.Thread(target=log_sensor_values, args=(pick_sensor, "PICK", 20, start, sensor_data, data_lock, pick_current_stream)),
         threading.Thread(target=csv_writer)
     ]
 
@@ -85,6 +88,7 @@ def start_logging_multirate(filename="ina260_multicolumn.csv", fret_current_stre
         t.start()
 
     return threads, file_handle
+
 
 
 def stop_logging(threads, file_handle):
