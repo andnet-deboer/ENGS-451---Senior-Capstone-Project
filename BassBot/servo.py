@@ -3,16 +3,16 @@ from gpiozero.pins.pigpio import PiGPIOFactory
 from time import sleep
 
 class ServoController:
-    def __init__(self, pin, factory=None, initial_value=0, name=None, LOW=-30, HIGH=30, offset=0):
+    def __init__(self, pin, factory=None, state=True, initial_value=0, name=None, LOW=-30, HIGH=30, offset=0):
         if factory is None:
             factory = PiGPIOFactory()
         self.name = name
         self.pin = pin
-        self.state = True
+        self.state = state
         self.servo = Servo(pin, pin_factory=factory, initial_value=initial_value)
-        self.low = LOW
-        self.high = HIGH
-        self.offset = offset
+        self.offset = offset/90
+        self.low = LOW+offset
+        self.high = HIGH+offset
 
     def set_angle(self, angle):
         self.servo.value = angle / 90
@@ -57,7 +57,12 @@ class ServoController:
         self.servo.detach()
 
     def zero(self):
-        self.servo.value = 0
+        self.servo.value = 0+self.offset
+    
+    def hold(self):
+        if self.state:
+            self.servo.value =self.high/90
+        self.servo.value = self.low/90
 
     def on(self):
         self.servo.value = 1

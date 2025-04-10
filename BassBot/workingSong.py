@@ -105,12 +105,12 @@ def count(count, bpm, servo, low_angle=-45, high_angle=-5):
         cnt += 1
 
 #Then initialize your servos like this:
-fret1 = Relay(1)
-fret2 = Relay(2)
-fret3 = Relay(3)
-fret4 = Relay(4)
+fret1 = Relay(3)
+fret2 = Relay(1)
+fret3 = Relay(4)
+fret4 = Relay(2)
 fret0 = Relay(10) #open string
-damper = Relay(7)
+damper = Relay(5)
 
 
 def relay_off(except_fret=None):
@@ -172,10 +172,10 @@ class ServoController:
         self.servo.value = 1
 
 #Initialize servos 
-servoG = ServoController(10, factory=factory, LOW=-25, HIGH=25,offset=10, name='G')
+servoG = ServoController(18, factory=factory, LOW=-25, HIGH=25,offset=10, name='G')
 servoD = ServoController(24, factory=factory, LOW=-20, HIGH=20,offset=4, name='D')
 servoA = ServoController(27, factory=factory, LOW=-15, HIGH=15, name='A')
-servoE = ServoController(18, factory=factory, LOW=-25, HIGH=25, name='E')
+servoE = ServoController(10, factory=factory, LOW=-25, HIGH=25, name='E')
 
 def detach_servos(except_servo=None):
     if except_servo != servoG:
@@ -248,7 +248,7 @@ def timePerBeat(bpm=120,timeSignature=4):
     #get the current time signature
 
     #return (2*60*timeSignature)/(4*bpm)
-    return (2*60*timeSignature)/(4*bpm)
+    return (60*timeSignature)/(4*bpm)
     
 
 ''' Play notes with increasing tempo'''

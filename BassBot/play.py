@@ -7,8 +7,9 @@ from datetime import datetime
 from bass import Bass
 from composer import Composer
 from score_parser import ScoreParser
-from currentLogging import start_logging_multirate, stop_logging
+# from currentLogging import start_logging_multirate, stop_logging
 from config import CURRENT_STREAM_SIZE, LOG_DIR
+from estop import EStopMonitor
 
 # === Setup Logging Directory ===
 os.makedirs(LOG_DIR, exist_ok=True)
@@ -24,17 +25,19 @@ damper_stream = deque([0]*CURRENT_STREAM_SIZE, maxlen=CURRENT_STREAM_SIZE)
 pick_stream   = deque([0]*CURRENT_STREAM_SIZE, maxlen=CURRENT_STREAM_SIZE)
 
 # === Start Multithreaded Logging ===
-threads, file_handle = start_logging_multirate(
-    filename=log_filename,
-    fret_current_stream=fret_stream,
-    damper_current_stream=damper_stream,
-    pick_current_stream=pick_stream
-)
+# threads, file_handle = start_logging_multirate(
+#     filename=log_filename,
+#     fret_current_stream=fret_stream,
+#     damper_current_stream=damper_stream,
+#     pick_current_stream=pick_stream
+# )
 
 # === Load and Parse Score ===
-music_file = "7NationArmy.xml"  # Replace with your MusicXML file
+#music_file = "7NationArmy.xml"  # Replace with your MusicXML file
+music_file = "ChromaticScale.xml"  # Replace with your MusicXML file
 parser = ScoreParser(music_file)
-note_matrix = parser.generate_note_matrix()
+note_matrix = parser.generate_note_matrix(1)
+parser.save_note_matrix("note_matrix.csv")
 
 # === Initialize Composer ===
 composer = Composer(
@@ -47,14 +50,28 @@ composer = Composer(
 # === Playback Thread ===
 def play_song():
     print("[System] Starting song performance...\n")
-    #composer.pick_string_test(bass.servoA, bass.fret4, num_picks=500,delay_between=2)
-    composer.play()
+    #composer.pick_string(bass.servoA, bass.fret4, num_picks=500,delay_between=2)
+    #bass.zero_servos(
+    composer.play_notes(note_matrix)
     print("\n[System] Song complete.")
     #bass.bass_off()
 
 # === Run ===
 music_thread = threading.Thread(target=play_song, daemon=True)
 music_thread.start()
+
+# === Initialize E-Stop Monitor ===
+estop_monitor = EStopMonitor()
+# === Watchdog Thread ===
+def estop_watcher():
+    while music_thread.is_alive():
+        if estop_monitor.is_triggered():
+            print("\n🚨 [E-STOP] Emergency Stop Triggered! Shutting down...")
+            bass.bass_off()
+            os._exit(1)  # Hard exit to stop everything immediately
+        time.sleep(0.1)  # Check every 100ms
+watcher_thread = threading.Thread(target=estop_watcher, daemon=True)
+watcher_thread.start()
 
 try:
     while music_thread.is_alive():
@@ -65,7 +82,8 @@ except KeyboardInterrupt:
     print("\n[System] Interrupted by user.")
 
 finally:
+    
     bass.bass_off()
-    stop_logging(threads, file_handle)
+   # stop_logging(threads, file_handle)
     print(f"[System] Data saved to: {log_filename}")
     print("[System] Shutdown complete.")

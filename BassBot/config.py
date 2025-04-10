@@ -1,17 +1,20 @@
 # Servo GPIO pins
 SERVO_PINS = {
-    'E': 18,
+    'E': 10,
     'A': 27,
     'D': 24,
-    'G': 10
+    'G': 18
 }
+
+# EStop GPIO pin
+ESTOP_PIN = 26
 
 # Relay numbers (logical mapping)
 RELAY_NUMBERS = {
-    'fret1': 3,
-    'fret2': 1,
+    'fret1': 1,
+    'fret2': 2,
     'fret3': 4,
-    'fret4': 2,
+    'fret4': 3,
     'damper': 5
 }
 

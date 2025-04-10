@@ -2,12 +2,15 @@ import csv
 import xml.etree.ElementTree as ET
 from datetime import timedelta
 from music21 import converter, tempo, meter, note, chord
+import os
 
 
 class ScoreParser:
     def __init__(self, music_file, bpm_override=None, use_file_bpm=True):
-        self.music_file = music_file
-        self.parsed_work = converter.parse(music_file)
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        songs_dir = os.path.join(base_dir, "Songs")
+        self.music_file = os.path.join(songs_dir, music_file)
+        self.parsed_work = converter.parse(self.music_file)
         self.time_signature = self._get_time_signature()
         self.bpm = self._determine_bpm(bpm_override, use_file_bpm)
         self.time_per_quarter = 60 / self.bpm * self.time_signature.beatDuration.quarterLength
@@ -55,14 +58,13 @@ class ScoreParser:
             if bpm is not None:
                 return bpm
         return 120  # fallback default
-
-    def generate_note_matrix(self):
+    def generate_note_matrix(self, octave_adjustment=0):
         self.note_matrix = []
         track_time = 0.0
 
         for element in self.parsed_work.recurse():
-            if isinstance(element, chord.Chord):
-                continue
+            if hasattr(element, 'octave') and octave_adjustment != 0:
+                element.octave += octave_adjustment
             if not isinstance(element, (note.Note, note.Rest)):
                 continue
 
@@ -78,7 +80,7 @@ class ScoreParser:
                 label = "Rest"
                 type_ = "Rest"
 
-            row = [type_, label, str(start), str(end), round(duration, 3)]
+            row = [element, type_, label, str(start), str(end), round(duration, 3)]
             self.note_matrix.append(row)
 
         return self.note_matrix
@@ -89,11 +91,6 @@ class ScoreParser:
 
         with open(filename, mode='w', newline='') as f:
             writer = csv.writer(f)
-            writer.writerow(["Element Type", "Pitch/Rest", "Start Time", "End Time", "Duration (sec)"])
+            writer.writerow(["Element Object", "Element Type", "Pitch/Rest", "Start Time", "End Time", "Duration (sec)"])
             writer.writerows(self.note_matrix)
         print(f"[ScoreParser] Saved timing info to: {filename}")
-    
-# Create an instance
-parser = ScoreParser("7NationArmy.xml")
-
-parser.save_note_matrix("7NationArmy_output.csv")

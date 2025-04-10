@@ -1,5 +1,10 @@
 import time
 from bass import Bass
+from config import NOTE_MAPPING_KEYS
+from music21 import converter, instrument, note, chord, stream
+from xml.etree import ElementTree as ET
+from score_parser import ScoreParser
+from datetime import timedelta
 class Composer:
     def __init__(self, note_matrix, bass: Bass, damper_stream, fret_stream):
         self.note_matrix = note_matrix
@@ -8,6 +13,7 @@ class Composer:
         self.fret_stream = fret_stream
 
     def play(self):
+        self.bass.estop.require_safe()
         """
         Iterate through the note matrix and trigger the full pick_string logic
         for each note using sensor-based control.
@@ -36,6 +42,7 @@ class Composer:
                 self.bass.relay_off()
 
     def pick_string_test(self, servo, fret=None, num_picks=5, delay_between=0.5):
+        self.bass.estop.require_safe()
         print(f"[Test] Running pick test on servo: {servo.name}, with fret: {fret}, {num_picks} picks")
 
         for i in range(num_picks):
@@ -76,3 +83,45 @@ class Composer:
 
         self.bass.bass_off()
         print("[Test] Pick test complete.")
+   
+    def dampSequence(self):
+        self.bass.damper.on()
+        time.sleep(0.5)
+
+    def play_notes(self, note_matrix):
+        self.bass.estop.require_safe()
+        self.bass.zero_servos()
+        #self.dampSequence()
+        for i in range(len(note_matrix) - 1):  # Iterate up to the second-to-last row
+            current_row = note_matrix[i]
+            next_row = note_matrix[i + 1]
+
+            note = current_row[0]
+
+            # Keep your original duration logic
+            duration = current_row[5]
+          
+            # Process only music21 Notes or Rests
+            if not hasattr(note, "isNote") or not hasattr(note, "isRest"):
+                continue
+
+            # Handle rests
+            if note.isRest:
+                time.sleep(duration)
+                self.bass.all_relays_off()
+                continue
+
+            # Handle notes
+            if note.isNote:
+                octave = note.octave 
+                servo, fret = self.bass.note_mapping.get((note.name, octave), (None, None))
+
+                self.bass.all_relays_off()
+
+                if fret:
+                    fret.on()
+
+                if servo:
+                    servo.pick()
+
+                time.sleep(duration)
