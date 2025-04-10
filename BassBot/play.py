@@ -1,89 +1,92 @@
 import os
 import time
 import threading
-from collections import deque
 from datetime import datetime
 
 from bass import Bass
 from composer import Composer
 from score_parser import ScoreParser
-# from currentLogging import start_logging_multirate, stop_logging
 from config import CURRENT_STREAM_SIZE, LOG_DIR
 from estop import EStopMonitor
 
-# === Setup Logging Directory ===
-os.makedirs(LOG_DIR, exist_ok=True)
-timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-log_filename = os.path.join(LOG_DIR, f"ina260_multirate_{timestamp}.csv")
+class BassPlayer:
+    def __init__(self, music_file: str, pause_event=None, stop_event=None, log=None):
+        self.music_file = music_file
+        self.pause_event = pause_event or threading.Event()
+        self.stop_event = stop_event or threading.Event()
+        self.pause_event.set()  # Start unpaused
+        self.log = log  # Injected from Flask
 
-# === Initialize Hardware ===
-bass = Bass()
+        # === Setup Logging ===
+        os.makedirs(LOG_DIR, exist_ok=True)
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        self.log_filename = os.path.join(LOG_DIR, f"ina260_multirate_{timestamp}.csv")
 
-# === Sensor Buffers ===
-fret_stream   = deque([0]*CURRENT_STREAM_SIZE, maxlen=CURRENT_STREAM_SIZE)
-damper_stream = deque([0]*CURRENT_STREAM_SIZE, maxlen=CURRENT_STREAM_SIZE)
-pick_stream   = deque([0]*CURRENT_STREAM_SIZE, maxlen=CURRENT_STREAM_SIZE)
+        # === Initialize Hardware ===
+        self.bass = Bass()
 
-# === Start Multithreaded Logging ===
-# threads, file_handle = start_logging_multirate(
-#     filename=log_filename,
-#     fret_current_stream=fret_stream,
-#     damper_current_stream=damper_stream,
-#     pick_current_stream=pick_stream
-# )
+        # === Parse Score ===
+        self.parser = ScoreParser(self.music_file)
+        self.note_matrix = self.parser.generate_note_matrix(1)
+        self.parser.save_note_matrix("note_matrix.csv")
 
-# === Load and Parse Score ===
-#music_file = "7NationArmy.xml"  # Replace with your MusicXML file
-music_file = "ChromaticScale.xml"  # Replace with your MusicXML file
-parser = ScoreParser(music_file)
-note_matrix = parser.generate_note_matrix(1)
-parser.save_note_matrix("note_matrix.csv")
+        # === Initialize Composer ===
+        self.composer = Composer(note_matrix=self.note_matrix, bass=self.bass)
+        self.composer.pause_event = self.pause_event
+        self.composer.stop_event = self.stop_event
 
-# === Initialize Composer ===
-composer = Composer(
-    note_matrix=note_matrix,
-    bass=bass,
-    damper_stream=damper_stream,
-    fret_stream=fret_stream
-)
+        # === Threads ===
+        self.music_thread = threading.Thread(target=self.play_song, daemon=True)
+        self.estop_monitor = EStopMonitor()
+        self.watcher_thread = threading.Thread(target=self.estop_watcher, daemon=True)
 
-# === Playback Thread ===
-def play_song():
-    print("[System] Starting song performance...\n")
-    #composer.pick_string(bass.servoA, bass.fret4, num_picks=500,delay_between=2)
-    #bass.zero_servos(
-    composer.play_notes(note_matrix)
-    print("\n[System] Song complete.")
-    #bass.bass_off()
+    def play_song(self):
+        print("[System] Starting song performance...\n")
+        try:
+            self.composer.play_notes(self.note_matrix)
+            print("[System] Song complete.")
+        except RuntimeError as e:
+            print(f"[E-STOP] {e}")
+            self.bass.bass_off()
+            if self.log is not None:
+                self.log.append(f"🚨 {str(e)}")
+        except Exception as e:
+            print(f"[ERROR] Unexpected error: {e}")
+            self.bass.bass_off()
+            if self.log is not None:
+                self.log.append(f"❌ Playback error: {str(e)}")
 
-# === Run ===
-music_thread = threading.Thread(target=play_song, daemon=True)
-music_thread.start()
+    def estop_watcher(self):
+        triggered = False
+        while self.music_thread.is_alive():
+            if self.estop_monitor.is_triggered():
+                if not triggered:
+                    print("\n🚨 [E-STOP] Emergency Stop Triggered! Shutting down...")
+                    if self.log is not None:
+                        self.log.append("🚨 Emergency stop triggered during playback.")
+                    self.bass.bass_off()
+                    self.stop_event.set()  # force stop
+                    triggered = True
+            time.sleep(0.1)
 
-# === Initialize E-Stop Monitor ===
-estop_monitor = EStopMonitor()
-# === Watchdog Thread ===
-def estop_watcher():
-    while music_thread.is_alive():
-        if estop_monitor.is_triggered():
-            print("\n🚨 [E-STOP] Emergency Stop Triggered! Shutting down...")
-            bass.bass_off()
-            os._exit(1)  # Hard exit to stop everything immediately
-        time.sleep(0.1)  # Check every 100ms
-watcher_thread = threading.Thread(target=estop_watcher, daemon=True)
-watcher_thread.start()
+    def run(self):
+        try:
+            self.music_thread.start()
+            self.watcher_thread.start()
+            while self.music_thread.is_alive():
+                if self.stop_event.is_set():
+                    print("[BassPlayer] Stop requested. Terminating playback.")
+                    self.bass.bass_off()
+                    break
+                time.sleep(0.5)
+        except KeyboardInterrupt:
+            print("\n[System] Interrupted by user.")
+        finally:
+            self.bass.bass_off()
+            print(f"[System] Data saved to: {self.log_filename}")
+            print("[System] Shutdown complete.")
 
-try:
-    while music_thread.is_alive():
-        time.sleep(0.5)
-        #bass.zero_servos
-
-except KeyboardInterrupt:
-    print("\n[System] Interrupted by user.")
-
-finally:
-    
-    bass.bass_off()
-   # stop_logging(threads, file_handle)
-    print(f"[System] Data saved to: {log_filename}")
-    print("[System] Shutdown complete.")
+# === Example Usage ===
+if __name__ == "__main__":
+    player = BassPlayer(music_file="7NationArmy.xml")
+    player.run()

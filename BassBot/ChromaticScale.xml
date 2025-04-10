@@ -121,7 +121,7 @@
         <transpose>
           <diatonic>0</diatonic>
           <chromatic>0</chromatic>
-          <octave-change>-1</octave-change>
+          <octave-change>0</octave-change>
           </transpose>
         </attributes>
       <note default-x="81.17" default-y="-50">

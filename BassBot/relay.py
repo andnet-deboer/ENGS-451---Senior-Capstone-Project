@@ -28,6 +28,9 @@ def relay_off(fret_relays, except_fret=None):
         if fret != except_fret:
             fret.off()
 
+def close(self):
+    lib8relind.set_all(0, 0)
+
 
 def detach_relays():
     lib8relind.set_all(0, 0)

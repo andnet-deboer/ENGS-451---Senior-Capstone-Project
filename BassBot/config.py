@@ -3,7 +3,7 @@ SERVO_PINS = {
     'E': 10,
     'A': 27,
     'D': 24,
-    'G': 18
+    'G': 18,
 }
 
 # EStop GPIO pin
@@ -15,7 +15,7 @@ RELAY_NUMBERS = {
     'fret2': 2,
     'fret3': 4,
     'fret4': 3,
-    'damper': 5
+    'damper': 5,
 }
 
 # Sensor I2C Addresses

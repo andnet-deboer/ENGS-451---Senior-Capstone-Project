@@ -119,7 +119,7 @@
         <clef>
           <sign>F</sign>
           <line>4</line>
-          <clef-octave-change>-1</clef-octave-change>
+          <clef-octave-change>0</clef-octave-change>
           </clef>
         </attributes>
       <note default-x="74.67" default-y="-15">

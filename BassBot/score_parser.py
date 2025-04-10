@@ -8,7 +8,7 @@ import os
 class ScoreParser:
     def __init__(self, music_file, bpm_override=None, use_file_bpm=True):
         base_dir = os.path.dirname(os.path.abspath(__file__))
-        songs_dir = os.path.join(base_dir, "Songs")
+        songs_dir = os.path.join(base_dir, "songs")
         self.music_file = os.path.join(songs_dir, music_file)
         self.parsed_work = converter.parse(self.music_file)
         self.time_signature = self._get_time_signature()

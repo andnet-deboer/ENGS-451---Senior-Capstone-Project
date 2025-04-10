@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Self-Playing Bass Guitar</title>
+  <script type="module" src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    body {
+      font-family: "Segoe UI", sans-serif;
+      background-color: #f4f6f9;
+      margin: 0;
+      padding: 0;
+    }
+
+    .navbar {
+      display: flex;
+      background-color: #2c3e50;
+      padding: 10px 20px;
+      align-items: center;
+      color: white;
+      justify-content: space-between;
+    }
+
+    .nav-left {
+      display: flex;
+      align-items: center;
+    }
+
+    .navbar a {
+      color: white;
+      text-decoration: none;
+      margin-right: 20px;
+      font-size: 16px;
+    }
+
+    .navbar a:hover {
+      text-decoration: underline;
+    }
+
+    h1 {
+      text-align: center;
+      color: #2c3e50;
+      margin-top: 20px;
+    }
+
+    .main-layout {
+      max-width: 1200px;
+      margin: 20px auto;
+      display: flex;
+      gap: 20px;
+      flex-wrap: wrap;
+    }
+
+    .controls-container {
+      flex: 1;
+      min-width: 300px;
+      background: #ffffff;
+      padding: 30px;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    .model-container {
+      flex: 1;
+      min-width: 300px;
+      max-width: 800px;
+      height: 600px;
+      background: #ffffff;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      overflow: hidden;
+    }
+
+    .model-header {
+      background-color: #2c3e50;
+      color: white;
+      padding: 15px;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-weight: 600;
+    }
+
+    .model-content {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.3s ease-out;
+      width: 100%;
+      height: 100%;
+    }
+
+    .model-content.expanded {
+      max-height: 600px;
+    }
+
+    .log-container {
+      margin-top: 20px;
+      margin-bottom: 10px;
+    }
+
+    .log-label {
+      font-weight: 600;
+      color: #2c3e50;
+      font-size: 16px;
+    }
+
+    .log-box {
+      width: 100%;
+      height: 180px;
+      padding: 10px;
+      background-color: #f9fafc;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      font-family: monospace;
+      color: #333;
+      resize: none;
+      overflow-y: scroll;
+    }
+
+    select {
+      width: 100%;
+      padding: 8px;
+      font-size: 14px;
+      margin-bottom: 10px;
+    }
+
+    .btn-play {
+      background-color: #2ecc71;
+      color: white;
+    }
+
+    .btn-pause {
+      background-color: #f1c40f;
+      color: white;
+    }
+
+    .btn-stop {
+      background-color: #e74c3c;
+      color: white;
+    }
+
+    .btn-clear {
+      background-color: #3498db;
+      color: white;
+      margin-top: 10px;
+    }
+
+    .button-group {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    button {
+      border: none;
+      padding: 10px 16px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+
+    model-viewer {
+      width: 100%;
+      height: 100%;
+      background-color: #e8e8e8;
+    }
+
+    #toast {
+      visibility: hidden;
+      min-width: 200px;
+      background-color: #333;
+      color: #fff;
+      text-align: center;
+      border-radius: 8px;
+      padding: 16px;
+      position: fixed;
+      z-index: 999;
+      left: 50%;
+      bottom: 30px;
+      transform: translateX(-50%);
+      font-size: 14px;
+      opacity: 0;
+      transition: opacity 0.5s, visibility 0.5s;
+    }
+
+    #toast.show {
+      visibility: visible;
+      opacity: 1;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="navbar">
+    <div class="nav-left">
+      <a href="/"><i class="fas fa-home"></i> Home</a>
+      <a href="/configurations"><i class="fas fa-gear"></i> Configurations</a>
+    </div>
+  </div>
+
+  <h1>Self-Playing Bass Guitar</h1>
+
+  <div class="main-layout">
+    <div class="controls-container">
+      <label for="song"><strong>Select Song</strong>:</label>
+      <select id="song">
+        {% for song in songs %}
+          <option value="{{ song }}" {% if song == current_song %}selected{% endif %}>{{ song }}</option>
+        {% endfor %}
+      </select>
+
+      <div class="button-group">
+        <button class="btn-play" onclick="sendAction('Play')"><i class="fas fa-play"></i> Play</button>
+        <button class="btn-pause" onclick="sendAction('Pause')"><i class="fas fa-pause"></i> Pause</button>
+        <button class="btn-stop" onclick="sendAction('Stop')"><i class="fas fa-stop"></i> Stop</button>
+      </div>
+
+      <div class="log-container">
+        <div class="log-label">System Log</div>
+        <textarea id="logBox" class="log-box" readonly>{{ '\n'.join(log) }}</textarea>
+      </div>
+
+      <button class="btn-clear" onclick="clearLog()"><i class="fas fa-trash"></i> Clear Log</button>
+    </div>
+
+    <div class="model-container">
+      <div class="model-header" onclick="toggleModelViewer()">
+        <span>3D Model Viewer</span>
+        <i id="model-toggle-icon" class="fas fa-chevron-down"></i>
+      </div>
+      <div class="model-content" id="model-content">
+        <model-viewer src="/static/bass_model.glb" alt="Bass Model" auto-rotate camera-controls></model-viewer>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast"></div>
+
+  <script>
+    function showToast(message) {
+      const toast = document.getElementById("toast");
+      toast.innerText = message;
+      toast.className = "show";
+      setTimeout(() => toast.className = toast.className.replace("show", ""), 3000);
+    }
+
+    function scrollToBottom() {
+      const logBox = document.getElementById("logBox");
+      logBox.scrollTop = logBox.scrollHeight;
+    }
+
+    function updateLog(logMessages) {
+      const logBox = document.getElementById("logBox");
+      logBox.value = logMessages.join("\n");
+      scrollToBottom();
+    }
+
+    function sendAction(action) {
+      const song = document.getElementById("song").value;
+      fetch("/trigger_action", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+        body: `action=${action}&song=${encodeURIComponent(song)}`
+      })
+        .then(response => response.json())
+        .then(data => {
+          showToast(`✅ ${data.message}`);
+          if (data.log) {
+            updateLog([data.log]);
+          }
+        })
+        .catch(error => {
+          console.error("Error sending action:", error);
+          showToast(`❌ Error: ${error}`);
+        });
+    }
+
+    function clearLog() {
+      fetch("/trigger_action", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+        body: "action=clear_log"
+      })
+        .then(response => response.json())
+        .then(data => {
+          showToast(`✅ ${data.message}`);
+          updateLog([]);
+        })
+        .catch(error => {
+          console.error("Error clearing log:", error);
+          showToast(`❌ Error: ${error}`);
+        });
+    }
+
+    function toggleModelViewer() {
+      fetch("/", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+        body: "action=toggle_model_viewer"
+      })
+        .then(response => response.json())
+        .then(data => {
+          const content = document.getElementById("model-content");
+          const icon = document.getElementById("model-toggle-icon");
+          content.classList.toggle("expanded", data.expanded);
+          icon.classList.toggle("fa-chevron-down", !data.expanded);
+          icon.classList.toggle("fa-chevron-up", data.expanded);
+        })
+        .catch(error => {
+          console.error("Error toggling model viewer:", error);
+          showToast(`❌ Error: ${error}`);
+        });
+    }
+
+    document.addEventListener("DOMContentLoaded", function () {
+      scrollToBottom();
+
+      const content = document.getElementById("model-content");
+      const icon = document.getElementById("model-toggle-icon");
+      const isExpanded = JSON.parse('{{ model_viewer_expanded|tojson }}');
+      content.classList.toggle("expanded", isExpanded);
+      icon.classList.toggle("fa-chevron-down", !isExpanded);
+      icon.classList.toggle("fa-chevron-up", isExpanded);
+    });
+  </script>
+</body>
+</html>

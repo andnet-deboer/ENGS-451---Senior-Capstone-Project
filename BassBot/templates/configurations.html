@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Configuration</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            font-family: "Segoe UI", sans-serif;
+            background-color: #f4f6f9;
+            margin: 0;
+            padding: 0;
+        }
+        .navbar {
+            display: flex;
+            background-color: #2c3e50;
+            padding: 10px 20px;
+            align-items: center;
+        }
+        .navbar button {
+            background: none;
+            color: white;
+            border: none;
+            font-size: 16px;
+            margin-right: 20px;
+            cursor: pointer;
+        }
+        .navbar button:hover,
+        .navbar button.active {
+            text-decoration: underline;
+        }
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+            margin-top: 20px;
+        }
+        .container {
+            max-width: 950px;
+            margin: 20px auto;
+            background: #ffffff;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        table, th, td {
+            border: 1px solid #d3d3d3;
+        }
+        th, td {
+            padding: 10px;
+            text-align: center;
+        }
+        .editable-input {
+            width: 80px;
+        }
+        .fa-pencil-alt {
+            cursor: pointer;
+            margin-left: 5px;
+            color: #3498db;
+        }
+        .btn-save {
+            margin-top: 20px;
+            background-color: #2980b9;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div class="navbar">
+        <button onclick="window.location.href='/'"><i class="fas fa-home"></i> Home</button>
+        <button onclick="window.location.href='/configurations'" style="text-decoration: underline;"><i class="fas fa-cog"></i> Configuration</button>
+        <button><i class="fas fa-ellipsis-h"></i> Other</button>
+    </div>
+
+    <h1>Configuration Settings</h1>
+    <div class="container">
+        <form method="post">
+            <table>
+                <tr>
+                    <th>String</th>
+                    <th>Servo GPIO</th>
+                    <th>Edit</th>
+                </tr>
+                {% for string, pin in servo_pins.items() %}
+                <tr>
+                    <td>{{ string }}</td>
+                    <td><input type="text" name="SERVO_{{ string }}" value="{{ pin }}" class="editable-input"></td>
+                    <td><i class="fas fa-pencil-alt"></i></td>
+                </tr>
+                {% endfor %}
+                <tr>
+                    <th>Fret</th>
+                    <th>Relay Number</th>
+                    <th>Edit</th>
+                </tr>
+                {% for fret, num in relay_numbers.items() %}
+                <tr>
+                    <td>{{ fret }}</td>
+                    <td><input type="text" name="fret_{{ fret }}" value="{{ num }}" class="editable-input"></td>
+                    <td><i class="fas fa-pencil-alt"></i></td>
+                </tr>
+                {% endfor %}
+            </table>
+            <button type="submit" name="action" value="SaveIDs" class="btn-save">Save IDs</button>
+        </form>
+    </div>
+</body>
+</html>

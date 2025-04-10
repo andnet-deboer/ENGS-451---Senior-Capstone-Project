@@ -26,10 +26,10 @@ class Bass:
         self.damper = Relay(RELAY_NUMBERS['damper'])
 
         # Create servos
-        self.servoE = ServoController(SERVO_PINS['E'], name='E', factory=factory, state=False, LOW=-35, HIGH=5, offset=-10)
+        self.servoE = ServoController(SERVO_PINS['E'], name='E', factory=factory, state=False, LOW=-35, HIGH=-5, offset=25)
         self.servoA = ServoController(SERVO_PINS['A'], name='A', factory=factory, state=True, LOW=-25,HIGH=5,offset=2)
 
-        self.servoD = ServoController(SERVO_PINS['D'], name='D', factory=factory,state=False, LOW=-10, HIGH=25, offset=-10)
+        self.servoD = ServoController(SERVO_PINS['D'], name='D', factory=factory,state=False, LOW=-10, HIGH=25, offset=0)
         self.servoG = ServoController(SERVO_PINS['G'], name='G', factory=factory,state=True, LOW=-30,HIGH=-5,offset=5)
 
         self.servos = [self.servoE, self.servoA, self.servoD, self.servoG]
@@ -99,7 +99,26 @@ class Bass:
         else:
             self.relay_off()
 
-    
+    def cleanup(self):
+        print("[Bass] Cleaning up GPIO devices...")
+
+        for servo in self.servos:
+            try:
+                servo.close()
+            except Exception as e:
+                print(f"[Bass] Failed to close servo {servo.name}: {e}")
+
+        for fret in self.frets:
+            try:
+                fret.off()
+            except Exception as e:
+                print(f"[Bass] Failed to turn off relay {fret}: {e}")
+
+        try:
+            self.damper.off()
+        except Exception as e:
+            print(f"[Bass] Failed to close damper: {e}")
+
     def pick_string_with_currentProcessing(self, note_name, octave, damper_stream, fret_stream, timeout=2.0):
         self.estop.require_safe()
         mapping = self.note_mapping.get((note_name, octave),duration=0)

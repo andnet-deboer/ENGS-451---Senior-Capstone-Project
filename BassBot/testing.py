@@ -31,6 +31,11 @@ def play_song():
    # Composer.play()
     print("\n[System] Song complete.")
     #bass.bass_off()
+def FourStringPickSequence(delay=1):
+    bass.pickString(bass.servoE, delay)
+    bass.pickString(bass.servoA, delay)   
+    bass.pickString(bass.servoD, delay)
+    bass.pickString(bass.servoG, delay)
 
 # === Run ===
 music_thread = threading.Thread(target=play_song, daemon=True)
@@ -40,18 +45,18 @@ try:
    # while music_thread.is_alive():
     while True:
         
-       # bass.frettingTest(bass.fret3, 2)
-         bass.pickString(bass.servoA, 1)
-    #    # time.sleep(1)
-    #     bass.pickString(bass.servoA, 0.2)
-    #    # time.sleep(1)
-    #     bass.pickString(bass.servoD, 0.2)
-    #     #time.sleep(1)
-    #     bass.pickString(bass.servoG, 0.2)
-       # time.sleep(1)
-        #bass.pickString(bass.servoG, 1)
-       # time.sleep(0.2)
-        #bass.zero_servos
+       bass.frettingTest(bass.fret3, 2)
+        #FourStringPickSequence(0.2)
+        #    # time.sleep(1)
+            # bass.pickString(bass.servoE,1 )
+        #    # time.sleep(1)
+        #     bass.pickString(bass.servoD, 0.2)
+        #     #time.sleep(1)
+        #     bass.pickString(bass.servoG, 0.2)
+        # time.sleep(1)
+            #bass.pickString(bass.servoG, 1)
+        # time.sleep(0.2)
+            #bass.zero_servos
 
 except KeyboardInterrupt:
     print("\n[System] Interrupted by user.")

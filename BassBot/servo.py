@@ -67,4 +67,7 @@ class ServoController:
     def on(self):
         self.servo.value = 1
 
+    def close(self):
+            self.servo.close()
+
   
