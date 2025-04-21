@@ -260,42 +260,42 @@ def acceleratedBPM(startBpm=60, maxBpm=140, step=40, strokes=5, servo=servoA, se
         count(strokes, i, servo, low_angle=LOW, high_angle=HIGH)
         count(strokes, i, servo2, low_angle=LOW, high_angle=HIGH)
 
-def chromaticScale(delay=0.6):
-        time.sleep(delay/2)
-        fret1.on()
-        print("Fret1")
-        time.sleep(delay/5)
-        servoE.pick()
-        print("ServoE")
-        time.sleep(delay)
-        fret1.off()
+# def chromaticScale(delay=0.6):
+#         time.sleep(delay/2)
+#         fret1.on()
+#         print("Fret1")
+#         time.sleep(delay/5)
+#         servoE.pick()
+#         print("ServoE")
+#         time.sleep(delay)
+#         fret1.off()
         
-        time.sleep(delay/2)
-        fret2.on()
-        print("Fret2")
-        time.sleep(delay/2)
-        servoA.pick()
-        print("ServoA")
-        time.sleep(delay)
-        fret2.off()
+#         time.sleep(delay/2)
+#         fret2.on()
+#         print("Fret2")
+#         time.sleep(delay/2)
+#         servoA.pick()
+#         print("ServoA")
+#         time.sleep(delay)
+#         fret2.off()
 
-        time.sleep(delay/2)
-        fret3.on()
-        print("Fret3")
-        time.sleep(delay/2)
-        servoD.pick()
-        print("ServoD")
-        time.sleep(delay)
-        fret3.off()
+#         time.sleep(delay/2)
+#         fret3.on()
+#         print("Fret3")
+#         time.sleep(delay/2)
+#         servoD.pick()
+#         print("ServoD")
+#         time.sleep(delay)
+#         fret3.off()
 
-        time.sleep(delay/2)
-        fret4.on()
-        print("Fret4")
-        time.sleep(delay/2)
-        servoG.pick()
-        print("ServoG")
-        time.sleep(delay)
-        fret4.off()
+#         time.sleep(delay/2)
+#         fret4.on()
+#         print("Fret4")
+#         time.sleep(delay/2)
+#         servoG.pick()
+#         print("ServoG")
+#         time.sleep(delay)
+#         fret4.off()
 
 # Convert the file to a stream
 #parsed_work = converter.parse('ChromaticScale.xml')
@@ -348,35 +348,35 @@ notes_in_chronological_order = []
 # Iterate through the sorted notes and play them at their respective start times
 
 
-def play_notes(note_matrix):
-  for i in range(len(note_matrix) - 1):  # Iterate up to the second-to-last row
-            current_row = note_matrix[i]
-            next_row = note_matrix[i + 1]  # Access the next row
+# def play_notes(note_matrix):
+#   for i in range(len(note_matrix) - 1):  # Iterate up to the second-to-last row
+#             current_row = note_matrix[i]
+#             next_row = note_matrix[i + 1]  # Access the next row
 
-            note = current_row[0]
-            if note.isNote:
-                 octave = current_row[0].octave+1
-            else:
-                octave = 0
+#             note = current_row[0]
+#             if note.isNote:
+#                  octave = current_row[0].octave+1
+#             else:
+#                 octave = 0
            
-            current_time = current_row[2]
-            next_time = next_row[2]  # Access a value from the next row
-            duration = current_row[4]
+#             current_time = current_row[2]
+#             next_time = next_row[2]  # Access a value from the next row
+#             duration = current_row[4]
 
-            if note.isNote:
-                #All non open string notes
-                if note_mapping[note.name,octave][1] is not None:
-                    relay_off(note_mapping[note.name,octave][1])  # Unfret all other frets
-                    note_mapping[note.name,octave][1].on()  # Fret the note
-                    note_mapping[note.name,octave][0].pick()  # Pick the note
-                #Open string notes
-                elif note_mapping[note.name,octave][1] is None:
-                    lib8relind.set_all(0, 0)
-                    note_mapping[note.name,octave][0].pick()  # Pick the note
-                time.sleep(duration)
-            else:
-                time.sleep(duration)
-                lib8relind.set_all(0, 0)
+#             if note.isNote:
+#                 #All non open string notes
+#                 if note_mapping[note.name,octave][1] is not None:
+#                     relay_off(note_mapping[note.name,octave][1])  # Unfret all other frets
+#                     note_mapping[note.name,octave][1].on()  # Fret the note
+#                     note_mapping[note.name,octave][0].pick()  # Pick the note
+#                 #Open string notes
+#                 elif note_mapping[note.name,octave][1] is None:
+#                     lib8relind.set_all(0, 0)
+#                     note_mapping[note.name,octave][0].pick()  # Pick the note
+#                 time.sleep(duration)
+#             else:
+#                 time.sleep(duration)
+#                 lib8relind.set_all(0, 0)
 
 # bpm = setBPM()
 try:
@@ -390,7 +390,7 @@ try:
         #Initalize 
         
         #chromaticScale(1)
-        play_notes(note_matrix)
+        # play_notes(note_matrix)
         #servoG.pick()
         #time.sleep(1)
      

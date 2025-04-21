@@ -8,6 +8,7 @@ import numpy as np
 import lib8relind
 import RPi.GPIO as GPIO
 import atexit
+import bass
 
 
 #  Servo Motor connnectios #
@@ -21,45 +22,19 @@ import atexit
 factory = PiGPIOFactory()
 initial_value = 0
 
-servoG = Servo(10, pin_factory=factory, initial_value=initial_value)
-servoD = Servo(27, pin_factory=factory, initial_value=initial_value)
-servoA = Servo(18, pin_factory=factory, initial_value=initial_value)
-servoE = Servo(24, pin_factory=factory, initial_value=initial_value)
 
-def detach_servos(except_servo=None):
-    if except_servo != servoG:
-        servoG.detach()
-    if except_servo != servoD:
-        servoD.detach()
-    if except_servo != servoA:
-        servoA.detach()
-    if except_servo != servoE:
-        servoE.detach()
+bassbot = bass.Bass()
 
-''' Set all servos to zero position '''
-def zero_servos():
-    servoG.value = 0
-    servoD.value = 0
-    servoA.value = 0
-    servoE.value = 0
-
-    ''' Set all servos to zero position '''
-def on_servos():
-    servoG.value = 1
-    servoD.value = 1
-    servoA.value = 1
-    servoE.value = 1
-
-atexit.register(detach_servos)
-
+atexit.register(bassbot.bass_off)
 def cleanup():
-    detach_servos()
+    bassbot.bass_off
     GPIO.cleanup()
 
 
 try:
     while True:
-      zero_servos
+        bassbot.zero_servos
+        
 
 except KeyboardInterrupt:
     print("Program stopped")

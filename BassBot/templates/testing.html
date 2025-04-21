@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>BassBot Scratch Interface</title>
+
+  <!-- Blockly core + JavaScript & Python generators -->
+  <script defer src="https://unpkg.com/blockly@11.2.0/blockly.min.js"></script>
+  <script defer src="https://unpkg.com/blockly@11.2.0/python_compressed.js"></script>
+  <script defer src="https://unpkg.com/blockly@11.2.0/msg/en.js"></script>
+
+  <!-- Your custom blocks & generators -->
+  <script defer src="{{ url_for('static', filename='js/bassbot_blocks.js') }}"></script>
+
+  <style>
+    html, body { height:100%; margin:0; font-family: "Segoe UI",sans-serif; background:#f4f6f9; }
+    .navbar { display:flex; align-items:center; padding:10px 20px; background:#2c3e50; color:#fff; }
+    .navbar a { color:#fff; margin-right:20px; text-decoration:none; }
+    .navbar a:hover { text-decoration:underline; }
+    #controls { display:flex; gap:8px; justify-content:flex-end; padding:10px 20px; background:#ecf0f1; }
+    #blocklyDiv { height:calc(100vh - 160px); width:100%; }
+    #logBox { margin:10px 20px; height:60px; padding:10px; border-radius:6px;
+      background:#fff; box-shadow:0 1px 4px rgba(0,0,0,.1);
+      font:13px/1.4 monospace; overflow-y:auto; white-space:pre-wrap; color:#2c3e50; }
+    button { padding:8px 16px; border:0; border-radius:6px; cursor:pointer; background:#83c52c; color:#fff; }
+  </style>
+</head>
+<body>
+
+  <div class="navbar">
+    <a href="/">Home</a>
+    <a href="/configurations">Configurations</a>
+    <a href="/testing" style="text-decoration:underline">Scratch Pad</a>
+  </div>
+
+  <div id="controls">
+    <button id="runButton">Run Code</button>
+    <button id="saveFnBtn" style="background:#3498db; color:#fff;">Save</button>
+  </div>
+
+  <div id="blocklyDiv"></div>
+  <div id="logBox">Execution log will appear here…</div>
+
+  <!-- Toolbox XML -->
+  <xml xmlns="https://developers.google.com/blockly/xml"
+       id="toolbox" style="display:none">
+    <category name="Control" colour="#5C81A6">
+      <block type="controls_repeat_ext">
+        <value name="TIMES">
+          <shadow type="math_number"><field name="NUM">3</field></shadow>
+        </value>
+      </block>
+      <block type="controls_whileUntil"></block>
+      <block type="controls_wait">
+        <value name="DURATION">
+          <shadow type="math_number"><field name="NUM">1</field></shadow>
+        </value>
+      </block>
+    </category>
+
+    <category name="BassBot Actions" colour="#D39D2A">
+      <block type="servo_control"></block>
+      <block type="fret_control"></block>
+    </category>
+
+    <category name="My Functions" colour="#FFB300" custom="SAVED_FUNCS"></category>
+
+    <category name="Values" colour="#A65C81">
+      <block type="text"><field name="TEXT">servoE</field></block>
+      <block type="text"><field name="TEXT">fret1</field></block>
+      <block type="math_number"><field name="NUM">1</field></block>
+    </category>
+  </xml>
+
+  <script>
+  window.addEventListener('DOMContentLoaded', () => {
+    // Inject Blockly workspace
+    const ws = Blockly.inject('blocklyDiv', {
+      toolbox: document.getElementById('toolbox'),
+      trashcan:true,
+      zoom:{controls:true, wheel:true},
+      grid:{spacing:40, length:3, colour:'#ccc', snap:true}
+    });
+
+    // Track last‐clicked block
+    let lastClicked = null;
+    ws.addChangeListener(evt => {
+      if (evt.type === Blockly.Events.SELECTED) {
+        lastClicked = ws.getBlockById(evt.newElementId);
+      }
+    });
+
+    // --- My Functions dynamic category ---
+    let savedNames = [];
+    ws.registerToolboxCategoryCallback('SAVED_FUNCS', () =>
+      savedNames.map(n => {
+        const b = document.createElement('block');
+        b.setAttribute('type', `call_${n}`);
+        return b;
+      })
+    );
+
+    async function refreshSaved() {
+      savedNames = await fetch('/list_functions').then(r => r.json());
+      savedNames.forEach(n => {
+        if (!Blockly.Blocks[`call_${n}`]) {
+          // define the block
+          Blockly.Blocks[`call_${n}`] = {
+            init() { this.jsonInit({
+              message0: n,
+              colour: "#FFB300",
+              previousStatement: null,
+              nextStatement: null
+            }); }
+          };
+          // generator
+          Blockly.Python.forBlock[`call_${n}`] = () =>
+            `__run_saved_function('${n}')\n`;
+        }
+      });
+      ws.updateToolbox(document.getElementById('toolbox'));
+    }
+
+    function listMissing() {
+      const miss = new Set();
+      ws.getAllBlocks(false).forEach(b => {
+        if (!Blockly.Python.forBlock[b.type]) miss.add(b.type);
+      });
+      return [...miss];
+    }
+
+    // --- Save selection as function ---
+    async function saveSelection() {
+      // climb to the true top‐level statement block
+      let root = lastClicked;
+      while (root && root.getParent()) root = root.getParent();
+      if (!root) { alert('Click on a block stack first.'); return; }
+
+      const name = prompt('Function name (letters, digits, underscore):');
+      if (!name) return;
+
+      // Clone into a tiny workspace so loops generate correctly
+      const tmp = new Blockly.Workspace();
+      Blockly.Xml.domToWorkspace(
+        Blockly.Xml.blockToDom(root, true),
+        tmp
+      );
+      let code = Blockly.Python.workspaceToCode(tmp);
+      tmp.dispose();
+
+      console.log('[DEBUG] generated code:\n'+code);
+      if (!code.trim()) {
+        alert('This stack generates no code.\nMissing generators: '+
+              listMissing().join(', '));
+        return;
+      }
+      code = code.trimEnd() + '\n';
+
+      const res = await fetch('/save_function', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({name, code})
+      });
+      if (!res.ok) { alert(await res.text()); return; }
+      await refreshSaved();
+      alert(`Saved "${name}"`);
+    }
+
+    // --- Run & Copy handlers ---
+    async function runBlocks() {
+      const logBox = document.getElementById('logBox');
+      logBox.textContent = '⏳ Generating code…';
+      const code = Blockly.Python.workspaceToCode(ws);
+      logBox.textContent = '⏳ Running…';
+      try {
+        const rsp = await fetch('/execute_blocks', {
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({code})
+        });
+        const data = await rsp.json();
+        logBox.textContent = data.message;
+      } catch (e) {
+        logBox.textContent = '❌ '+e.message;
+      }
+    }
+
+    document.getElementById('runButton').addEventListener('click', runBlocks);
+    document.getElementById('copyBtn').addEventListener('click', async () => {
+      await navigator.clipboard.writeText(
+        Blockly.Python.workspaceToCode(ws)
+      );
+    });
+    document.getElementById('saveFnBtn').addEventListener('click', saveSelection);
+    document.addEventListener('keydown', e => {
+      if (e.key==='Enter' && e.shiftKey) runBlocks();
+    });
+
+    // initial load of saved functions
+    refreshSaved();
+  });
+  </script>
+</body>
+</html>

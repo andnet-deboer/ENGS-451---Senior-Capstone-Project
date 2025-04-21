@@ -36,25 +36,60 @@ def FourStringPickSequence(delay=1):
     bass.pickString(bass.servoA, delay)   
     bass.pickString(bass.servoD, delay)
     bass.pickString(bass.servoG, delay)
+    bass.pickString(bass.servoG, delay)
+    bass.pickString(bass.servoD, delay)
+    bass.pickString(bass.servoA, delay)   
+    bass.pickString(bass.servoE, delay)
 
-# === Run ===
-music_thread = threading.Thread(target=play_song, daemon=True)
-music_thread.start()
+    
+
+
+
+
 
 try:
    # while music_thread.is_alive():
     while True:
         
-       bass.frettingTest(bass.fret3, 2)
-        #FourStringPickSequence(0.2)
+       #bass.frettingTest(bass.damper, 2)S
+       #bass.dampingTest(bass.damper,2)
+       #bass.frettingTest(bass.fret3,1)
+    #    for i in range(1,5):
+    #     bass.damp_bass(bass.servoE)
+    #     for j in range(1,100):
+    #        time.sleep(1)
+    #        bass.fret3.on()
+    #        time.sleep(0.1)
+    #        bass.servoE.pick()
+    #        time.sleep(2)
+    #        bass.fret3.off()
+           
+    #     time.sleep(100)
+    #    for i in range(1,5):
+    #     bass.servoA.pick()
+    #     time.sleep(0.1)
+       for i in range(1,10):
+        bass.servoA.sustain()
+        time.sleep(0.2) 
+       for i in range(1,10):
+        bass.servoD.sustain()
+        time.sleep(0.2)
+      #FourStringPickSequence(1)
+        ##    # time.sleep(1
+#
+        #bass.pickString(bass.servoG, 1)
+        #bass.servoA.sustain()
+        #time.sleep(1)
+   #
+
         #    # time.sleep(1)
-            # bass.pickString(bass.servoE,1 )
-        #    # time.sleep(1)
-        #     bass.pickString(bass.servoD, 0.2)
+        #bass.pickString(bass.servoA, 1)
+        #time.sleep(0.5)
+        #bass.pickString(bass.servoG,1)
         #     #time.sleep(1)
         #     bass.pickString(bass.servoG, 0.2)
         # time.sleep(1)
-            #bass.pickString(bass.servoG, 1)
+        #bass.pickString(bass.servoG, 1)
         # time.sleep(0.2)
             #bass.zero_servos
 

@@ -14,8 +14,8 @@ import board
 import adafruit_ina260
 from time import sleep
 from gpiozero import Servo
-from currentLogging import*
-from currentLogging import start_logging_multirate, stop_logging
+from currentMonitor import*
+from currentMonitor import start_logging_multirate, stop_logging
 
 # Ensure LogFiles directory exists
 log_dir = "LogFiles"

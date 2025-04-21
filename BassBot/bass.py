@@ -1,3 +1,4 @@
+import threading
 from config import (
     SERVO_PINS,
     RELAY_NUMBERS,
@@ -26,21 +27,38 @@ class Bass:
         self.damper = Relay(RELAY_NUMBERS['damper'])
 
         # Create servos
-        self.servoE = ServoController(SERVO_PINS['E'], name='E', factory=factory, state=False, LOW=-35, HIGH=-5, offset=25)
-        self.servoA = ServoController(SERVO_PINS['A'], name='A', factory=factory, state=True, LOW=-25,HIGH=5,offset=2)
+        self.servoE = ServoController(SERVO_PINS['E'], name='E', factory=factory, state=True, sustainFactor=1.4,LOW=-25,HIGH=35,offset=-7)
+        self.servoA = ServoController(SERVO_PINS['A'], name='A', factory=factory, state=True,sustainFactor=1.44, LOW=-35,HIGH=25,offset=0)
+        self.servoD = ServoController(SERVO_PINS['D'], name='D', factory=factory, state=True, sustainFactor=1.3,LOW=-32,HIGH=30,offset=9)
+        self.servoG = ServoController(SERVO_PINS['G'], name='G', factory=factory, state=True,sustainFactor=1.4, LOW=-30,HIGH=20,offset=0)
 
-        self.servoD = ServoController(SERVO_PINS['D'], name='D', factory=factory,state=False, LOW=-10, HIGH=25, offset=0)
-        self.servoG = ServoController(SERVO_PINS['G'], name='G', factory=factory,state=True, LOW=-30,HIGH=-5,offset=5)
 
         self.servos = [self.servoE, self.servoA, self.servoD, self.servoG]
         self.frets = [self.fret1, self.fret2, self.fret3, self.fret4]
-  
+        self.fret_map = {
+            "fret1": self.fret1,
+            "fret2": self.fret2,
+            "fret3": self.fret3,
+            "fret4": self.fret4
+        }
+        #DAMPING THREAD
+        self.active_servo = None
+        # self.active_servo_lock = threading.Lock()
+        # self.damping_thread = threading.Thread(target=self._damping_loop, daemon=True)
+        # self._damping_active = threading.Event()
+
        
         # Build the note mapping at initialization
         self.note_mapping = {
     key: [getattr(self, f"servo{string}"), getattr(self, fret) if fret else None]
     for key, (string, fret) in NOTE_MAPPING_KEYS.items()
 }
+    def damp_bass (self,servo):
+        for s in self.servos:
+            if s != servo:
+             s.damp()
+    
+
 
     def _build_note_mapping(self):
         from config import NOTE_MAPPING_KEYS
@@ -72,10 +90,35 @@ class Bass:
         self.damper.off()
 
     def zero_servos(self):
-        for servo in self.servos:
-            servo.zero()
+        for s in self.servos:
+            s.zero
 
-    def pick_string(self, note_name, octave, fret_stream, timeout=2.0):
+    # def _damping_loop(self):
+    #     while self._damping_active.is_set():
+    #         with self.active_servo_lock:
+    #             active = self.active_servo
+
+    #         for servo in self.servos:
+    #             if servo != active:
+    #                 servo.damp()
+
+    # def start_damping_loop(self):
+    #     self._damping_active.set()
+    #     if not self.damping_thread.is_alive():
+    #         self.damping_thread = threading.Thread(target=self._damping_loop, daemon=True)
+    #         self.damping_thread.start()
+
+    # def stop_damping_loop(self):
+    #     self._damping_active.clear()
+    #     if self.damping_thread.is_alive():
+    #         self.damping_thread.join(timeout=2)
+
+    # def update_active_servo(self, servo):
+    #     with self.active_servo_lock:
+    #         self.active_servo = servo
+
+
+    def pick_string(self, note_name, octave, fret_stream, timeout=1.0,duration=0,dampnote=True):
         self.estop.require_safe()
         mapping = self.note_mapping.get((note_name, octave),duration=0)
         if not mapping:
@@ -83,28 +126,30 @@ class Bass:
             return
 
         servo, fret = mapping
-
-        servo.pick()
-        time.sleep(DELAY_AFTER_PICK)  # Allow servo motion to complete
+        self.damp_bass(servo)
+        print ("FRETTING",fret)
+        print ("PICKING",servo)
+        servo.pick(duration,dampnote)
         print(f"[Bass] Picking note {note_name}{octave}")
         # If no fret needed (open string), skip fretting steps
-        if fret is not None:
-            self.relay_off(keep=[fret])
-            fret.on()
-            print(f"[Bass] Fret ON: {fret}")
+        if (True):
+            if fret is not None:
+                self.relay_off(keep=[fret])
+                fret.on()
+                print(f"[Bass] Fret ON: {fret}")
 
-            if not self._wait_for_threshold(fret_stream, FRET_THRESHOLD, timeout):
-                print(f"[Bass] Warning: Fret current never exceeded {FRET_THRESHOLD}")
-                return
-        else:
-            self.relay_off()
+                if not self._wait_for_threshold(fret_stream, FRET_THRESHOLD, timeout):
+                    print(f"[Bass] Warning: Fret current never exceeded {FRET_THRESHOLD}")
+                    return
+            else:
+                self.relay_off()
 
+           
     def cleanup(self):
         print("[Bass] Cleaning up GPIO devices...")
-
         for servo in self.servos:
             try:
-                servo.close()
+                servo.close()  # make sure your ServoController has a .close() method
             except Exception as e:
                 print(f"[Bass] Failed to close servo {servo.name}: {e}")
 
@@ -119,49 +164,36 @@ class Bass:
         except Exception as e:
             print(f"[Bass] Failed to close damper: {e}")
 
-    def pick_string_with_currentProcessing(self, note_name, octave, damper_stream, fret_stream, timeout=2.0):
-        self.estop.require_safe()
-        mapping = self.note_mapping.get((note_name, octave),duration=0)
-        if not mapping:
-            print(f"[Bass] Note ({note_name}, {octave}) not found in mapping.")
-            return
+    # def pick_string_with_currentProcessing(self, note_name, octave, damper_stream, fret_stream, timeout=2.0, duration=0):
+    #     self.estop.require_safe()
+    #     mapping = self.note_mapping.get((note_name, octave),duration=0)
+    #     if not mapping:
+    #         print(f"[Bass] Note ({note_name}, {octave}) not found in mapping.")
+    #         return
 
-        servo, fret = mapping
+    #     servo, fret = mapping
 
-        # 1. Damp String
-        self.damper.on()
-        print(f"[Bass] Damper ON")
+    #     # DAMP STRING
+    #     servo.damp()
 
-        # 2. Wait for damper pressure
-        if not self._wait_for_threshold(damper_stream, DAMP_THRESHOLD, timeout):
-            print(f"[Bass] Warning: Damper current never exceeded {DAMP_THRESHOLD}")
-            return
+    #     # If no fret needed (open string), skip fretting steps
+    #     if fret is not None:
+    #         self.relay_off(keep=[fret])
+    #         fret.on()
+    #         print(f"[Bass] Fret ON: {fret}")
 
-        # If no fret needed (open string), skip fretting steps
-        if fret is not None:
-            self.relay_off(keep=[fret])
-            fret.on()
-            print(f"[Bass] Fret ON: {fret}")
+    #         if not self._wait_for_threshold(fret_stream, FRET_THRESHOLD, timeout):
+    #             print(f"[Bass] Warning: Fret current never exceeded {FRET_THRESHOLD}")
+    #             return
+    #     else:
+    #         self.relay_off()
 
-            if not self._wait_for_threshold(fret_stream, FRET_THRESHOLD, timeout):
-                print(f"[Bass] Warning: Fret current never exceeded {FRET_THRESHOLD}")
-                return
-        else:
-            self.relay_off()
+    #     #UNDAMP STRING
 
-        # 5. Release damper
-        self.damper.off()
-        print(f"[Bass] Damper OFF")
-
-        if not self._wait_until_below_threshold(damper_stream, RELEASE_THRESHOLD, timeout):
-            print(f"[Bass] Warning: Damper current never dropped below {RELEASE_THRESHOLD}")
-            return
-
-        # 7. Pick
-        print(f"[Bass] Picking note {note_name}{octave}")
-        servo.pick()
-        time.sleep(0.8*duration)
-        self.relay_off()
+    #     print(f"[Bass] Picking note {note_name}{octave}")
+    #     servo.pick()
+    #     time.sleep(0.8*duration)
+    #     self.relay_off()
 
 
     def _wait_for_threshold(self, current_stream, threshold, timeout=2.0, poll_interval=0.01):
@@ -194,15 +226,11 @@ class Bass:
             print(servo)
         print("[Bass] Servos calibrated.")
 
-    def pickString(self, servo, delay_between_picks):
-        self.estop.require_safe()
-        print(f"[Bass] Setting all servos except {servo.name} to zero position.")
-        # for s in self.servos:
-        #     if s != servo:
-        #         s.hold()
-        print(f"[Bass] Picking string {servo.name}")
-        servo.pick()
-        time.sleep(delay_between_picks)
+    # def pickString(self, servo, delay_between_picks):
+    #     self.estop.require_safe()
+    #     print(f"[Bass] Picking string {servo.name}")
+    #     servo.pick()
+    #     time.sleep(delay_between_picks)
    
     def pickingTest(self, servos, delay_between_picks):
         self.estop.require_safe()

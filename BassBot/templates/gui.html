@@ -2,9 +2,10 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Self-Playing Bass Guitar</title>
+  <title>Bass Bot</title>
   <script type="module" src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
+
   <style>
     body {
       font-family: "Segoe UI", sans-serif;
@@ -40,7 +41,7 @@
 
     h1 {
       text-align: center;
-      color: #2c3e50;
+      color: #000000;
       margin-top: 20px;
     }
 
@@ -189,6 +190,38 @@
       visibility: visible;
       opacity: 1;
     }
+
+    .upload-form {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  margin-top: 10px;
+}
+
+.upload-row {
+  display: flex;
+  flex-direction: row;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.upload-group {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 200px;
+}
+
+.upload-group label {
+  margin-bottom: 5px;
+  color: #2c3e50;
+}
+
+.upload-button {
+  width: fit-content;
+  align-self: flex-start;
+}
+
   </style>
 </head>
 <body>
@@ -197,34 +230,64 @@
     <div class="nav-left">
       <a href="/"><i class="fas fa-home"></i> Home</a>
       <a href="/configurations"><i class="fas fa-gear"></i> Configurations</a>
+      <a href="/testing"><i class="fas fa-gear"></i> Scratch Pad</a>
     </div>
   </div>
 
-  <h1>Self-Playing Bass Guitar</h1>
+  <h1>Bass Bot</h1>
 
   <div class="main-layout">
+    <!-- Left Column: Controls -->
     <div class="controls-container">
+      <!-- Album Cover and Now Playing -->
+      <div style="text-align: center; margin-bottom: 20px;">
+        <div style="font-size: 18px; font-weight: bold; color: #2c3e50;">🎵 Now Playing</div>
+        <img id="album-cover" src="/static/album_default.jpg" alt="Album Cover"
+             style="margin-top: 10px; max-width: 40%; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.1);">
+      </div>
+    
       <label for="song"><strong>Select Song</strong>:</label>
-      <select id="song">
+      <select id="song" onchange="updateAlbumCover()">
         {% for song in songs %}
           <option value="{{ song }}" {% if song == current_song %}selected{% endif %}>{{ song }}</option>
         {% endfor %}
       </select>
-
+    
       <div class="button-group">
         <button class="btn-play" onclick="sendAction('Play')"><i class="fas fa-play"></i> Play</button>
         <button class="btn-pause" onclick="sendAction('Pause')"><i class="fas fa-pause"></i> Pause</button>
         <button class="btn-stop" onclick="sendAction('Stop')"><i class="fas fa-stop"></i> Stop</button>
       </div>
-
+    
+      <!-- Log Section -->
       <div class="log-container">
         <div class="log-label">System Log</div>
         <textarea id="logBox" class="log-box" readonly>{{ '\n'.join(log) }}</textarea>
+        <button class="btn-clear" onclick="clearLog()"><i class="fas fa-trash"></i> Clear Log</button>
       </div>
-
-      <button class="btn-clear" onclick="clearLog()"><i class="fas fa-trash"></i> Clear Log</button>
-    </div>
-
+    
+      <!-- Upload Section -->
+      <div class="log-container">
+        <div class="log-label">Upload New Song + Cover</div>
+        <form id="uploadForm" enctype="multipart/form-data" class="upload-form">
+          <div class="upload-row">
+            <div class="upload-group">
+              <label for="songFile"><strong>Song (.xml)</strong></label>
+              <input type="file" id="songFile" name="songFile" accept=".xml" required>
+            </div>
+            <div class="upload-group">
+              <label for="coverFile"><strong>Cover Image (jpg/png)</strong></label>
+              <input type="file" id="coverFile" name="coverFile" accept=".jpg,.jpeg,.png" required>
+            </div>
+          </div>
+          <button type="submit" class="btn-clear upload-button">
+            <i class="fas fa-upload"></i> Upload
+          </button>
+        </form>
+      </div>
+    </div> <!-- END of .controls-container -->
+  
+    <!-- Right Column: Model Viewer -->
     <div class="model-container">
       <div class="model-header" onclick="toggleModelViewer()">
         <span>3D Model Viewer</span>
@@ -233,9 +296,24 @@
       <div class="model-content" id="model-content">
         <model-viewer src="/static/bass_model.glb" alt="Bass Model" auto-rotate camera-controls></model-viewer>
       </div>
-    </div>
-  </div>
 
+      <!-- <label><strong>Current Monitor:</strong></label>
+      <img id="currentPlot"
+           src="/current_plot.png"
+           style="width:100%;max-height:300px;border:1px solid #ccc;">
+           <script>
+            document.addEventListener('DOMContentLoaded', () => {
+              const img = document.getElementById('currentPlot');
+              // fire once immediately so you see the first frame
+              img.src = `/current_plot.png?ts=${Date.now()}`;
+      
+              // then every second, bump the cache‑buster
+              setInterval(() => {
+                img.src = `/current_plot.png?ts=${Date.now()}`;
+              }, 30);
+            });
+          </script> -->
+  
   <div id="toast"></div>
 
   <script>
@@ -330,6 +408,85 @@
       icon.classList.toggle("fa-chevron-down", !isExpanded);
       icon.classList.toggle("fa-chevron-up", isExpanded);
     });
+
+    function updateAlbumCover() {
+  const song = document.getElementById("song").value;
+  const lowercaseName = song.toLowerCase().replace(/[^a-z0-9]/g, "_");
+  const imagePath = `/static/covers/${lowercaseName}.jpg`;
+  const defaultImage = "/static/album_default.jpg";
+  const albumCover = document.getElementById("album-cover");
+
+  // Check if the image exists before using it
+  fetch(imagePath, { method: "HEAD" })
+    .then(response => {
+      if (response.ok) {
+        albumCover.src = imagePath;
+      } else {
+        albumCover.src = defaultImage;
+      }
+    })
+    .catch(() => {
+      albumCover.src = defaultImage;
+    });
+}
+
+document.getElementById("uploadForm").addEventListener("submit", function (e) {
+  e.preventDefault();
+
+  const songInput = document.getElementById("songFile");
+  const coverInput = document.getElementById("coverFile");
+
+  const formData = new FormData();
+  formData.append("songFile", songInput.files[0]);
+  formData.append("coverFile", coverInput.files[0]);
+
+  fetch("/upload_song", {
+    method: "POST",
+    body: formData
+  })
+    .then(response => response.json())
+    .then(data => {
+      showToast(`✅ ${data.message}`);
+      location.reload();
+    })
+    .catch(error => {
+      console.error("Upload failed:", error);
+      showToast(`❌ Upload failed: ${error}`);
+    });
+});
+
+document.addEventListener("DOMContentLoaded", () => {
+    let plotInterval = null;
+    const sel  = document.getElementById("monitorSelect");
+    const img  = document.getElementById("currentPlot");
+
+    sel.addEventListener("change", async () => {
+      if (sel.value === "on") {
+        // tell server to start sampling
+        await fetch("/start_monitor", { method: "POST" });
+        img.style.display = "block";
+        // refresh the plot every second
+        plotInterval = setInterval(() => {
+          // cache‑bust with timestamp
+          img.src = "/current_plot.png?ts=" + Date.now();
+        }, 1000);
+      } else {
+        // stop sampling and hide plot
+        await fetch("/stop_monitor", { method: "POST" });
+        clearInterval(plotInterval);
+        img.style.display = "none";
+      }
+    });
+  });
+  let plotInt;
+const sel = document.getElementById('monitorSelect');
+const img = document.getElementById('currentPlot');
+
+  // // reload the PNG every second
+  // setInterval(()=>{
+  //   document.getElementById('currentPlot')
+  //           .src = '/current_plot.png?ts=' + Date.now();
+  // }, 50);
   </script>
 </body>
 </html>

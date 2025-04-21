@@ -1,9 +1,9 @@
 # Servo GPIO pins
 SERVO_PINS = {
     'E': 10,
-    'A': 27,
+    'A': 18,
     'D': 24,
-    'G': 18,
+    'G': 27,
 }
 
 # EStop GPIO pin
@@ -12,9 +12,9 @@ ESTOP_PIN = 26
 # Relay numbers (logical mapping)
 RELAY_NUMBERS = {
     'fret1': 1,
-    'fret2': 2,
-    'fret3': 4,
-    'fret4': 3,
+    'fret2': 3,
+    'fret3': 2,
+    'fret4': 4,
     'damper': 5,
 }
 
@@ -48,6 +48,12 @@ NOTE_MAPPING_KEYS = {
     ('B', 3): ('G', 'fret4'),
 }
 
+#Key Signature Map
+KEY_SIGNAURE_MAPPING = {}
+
+
+
+
 
 # Current thresholds (in mA)
 CURRENT_THRESHOLD = 2000         # General use (fallback/default)
@@ -56,7 +62,7 @@ FRET_THRESHOLD = 3000            # Minimum to detect fret pressed
 RELEASE_THRESHOLD = 400          # Threshold below which damper is considered released
 
 # Timing
-DELAY_AFTER_PICK = 0.1           # Allow servo motion to complete after pick
+DELAY_AFTER_PICK = 0.05           # Allow servo motion to complete after pick
 
 # Stream settings
 CURRENT_STREAM_SIZE = 20

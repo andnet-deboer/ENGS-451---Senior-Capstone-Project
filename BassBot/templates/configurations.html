@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <title>Configuration</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
     <style>
         body {
             font-family: "Segoe UI", sans-serif;
@@ -77,7 +77,7 @@
     <div class="navbar">
         <button onclick="window.location.href='/'"><i class="fas fa-home"></i> Home</button>
         <button onclick="window.location.href='/configurations'" style="text-decoration: underline;"><i class="fas fa-cog"></i> Configuration</button>
-        <button><i class="fas fa-ellipsis-h"></i> Other</button>
+        <button onclick="window.location.href='/testing'" style="text-decoration: underline;"><i class="fas fa-cog"></i> Scratch Pad</button>
     </div>
 
     <h1>Configuration Settings</h1>
@@ -87,25 +87,21 @@
                 <tr>
                     <th>String</th>
                     <th>Servo GPIO</th>
-                    <th>Edit</th>
                 </tr>
                 {% for string, pin in servo_pins.items() %}
                 <tr>
                     <td>{{ string }}</td>
                     <td><input type="text" name="SERVO_{{ string }}" value="{{ pin }}" class="editable-input"></td>
-                    <td><i class="fas fa-pencil-alt"></i></td>
                 </tr>
                 {% endfor %}
                 <tr>
                     <th>Fret</th>
                     <th>Relay Number</th>
-                    <th>Edit</th>
                 </tr>
                 {% for fret, num in relay_numbers.items() %}
                 <tr>
                     <td>{{ fret }}</td>
                     <td><input type="text" name="fret_{{ fret }}" value="{{ num }}" class="editable-input"></td>
-                    <td><i class="fas fa-pencil-alt"></i></td>
                 </tr>
                 {% endfor %}
             </table>
