@@ -6,7 +6,8 @@ from config import (
     FRET_THRESHOLD,
     RELEASE_THRESHOLD,
     DELAY_AFTER_PICK,
-    NOTE_MAPPING_KEYS
+    NOTE_MAPPING_KEYS,
+    SERVO_CONFIGS
 
 )
 from servo import ServoController
@@ -26,12 +27,11 @@ class Bass:
         self.fret4 = Relay(RELAY_NUMBERS['fret4'])
         self.damper = Relay(RELAY_NUMBERS['damper'])
 
-        # Create servos
-        self.servoE = ServoController(SERVO_PINS['E'], name='E', factory=factory, state=True, sustainFactor=1.4,LOW=-25,HIGH=35,offset=-7)
-        self.servoA = ServoController(SERVO_PINS['A'], name='A', factory=factory, state=True,sustainFactor=1.44, LOW=-35,HIGH=25,offset=0)
-        self.servoD = ServoController(SERVO_PINS['D'], name='D', factory=factory, state=True, sustainFactor=1.3,LOW=-32,HIGH=30,offset=9)
-        self.servoG = ServoController(SERVO_PINS['G'], name='G', factory=factory, state=True,sustainFactor=1.4, LOW=-30,HIGH=20,offset=0)
-
+       # Create servos using dynamic config
+        self.servoE = self._init_servo('E', factory)
+        self.servoA = self._init_servo('A', factory)
+        self.servoD = self._init_servo('D', factory)
+        self.servoG = self._init_servo('G', factory)
 
         self.servos = [self.servoE, self.servoA, self.servoD, self.servoG]
         self.frets = [self.fret1, self.fret2, self.fret3, self.fret4]
@@ -53,6 +53,20 @@ class Bass:
     key: [getattr(self, f"servo{string}"), getattr(self, fret) if fret else None]
     for key, (string, fret) in NOTE_MAPPING_KEYS.items()
 }
+
+    def _init_servo(self, name, factory):
+            cfg = SERVO_CONFIGS.get(name, {})
+            return ServoController(
+                SERVO_PINS[name],
+                name=name,
+                factory=factory,
+                state=cfg.get('state', True),
+                sustainFactor=cfg.get('sustain', 1.4),
+                LOW=cfg.get('low', -30),
+                HIGH=cfg.get('high', 30),
+                offset=cfg.get('offset', 0),
+                estop=self.estop
+            )
     def damp_bass (self,servo):
         for s in self.servos:
             if s != servo:

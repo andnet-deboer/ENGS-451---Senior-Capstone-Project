@@ -1,0 +1,21 @@
+Element Object,Element Type,Pitch/Rest,Start Time,End Time,Duration (sec)
+<music21.note.Note E>,Note,E2,0:00:00,0:00:00.500000,0.5
+<music21.note.Note F>,Note,F2,0:00:00.500000,0:00:01,0.5
+<music21.note.Note F#>,Note,F#2,0:00:01,0:00:01.500000,0.5
+<music21.note.Note G>,Note,G2,0:00:01.500000,0:00:02,0.5
+<music21.note.Note G#>,Note,G#2,0:00:02,0:00:02.500000,0.5
+<music21.note.Note A>,Note,A2,0:00:02.500000,0:00:03,0.5
+<music21.note.Note A#>,Note,A#2,0:00:03,0:00:03.500000,0.5
+<music21.note.Note B>,Note,B2,0:00:03.500000,0:00:04,0.5
+<music21.note.Note C>,Note,C3,0:00:04,0:00:04.500000,0.5
+<music21.note.Note C#>,Note,C#3,0:00:04.500000,0:00:05,0.5
+<music21.note.Note D>,Note,D3,0:00:05,0:00:05.500000,0.5
+<music21.note.Note D#>,Note,D#3,0:00:05.500000,0:00:06,0.5
+<music21.note.Note E>,Note,E3,0:00:06,0:00:06.500000,0.5
+<music21.note.Note F>,Note,F3,0:00:06.500000,0:00:07,0.5
+<music21.note.Note F#>,Note,F#3,0:00:07,0:00:07.500000,0.5
+<music21.note.Note G>,Note,G3,0:00:07.500000,0:00:08,0.5
+<music21.note.Note G#>,Note,G#3,0:00:08,0:00:08.500000,0.5
+<music21.note.Note A>,Note,A3,0:00:08.500000,0:00:09,0.5
+<music21.note.Note A#>,Note,A#3,0:00:09,0:00:09.500000,0.5
+<music21.note.Note B>,Note,B3,0:00:09.500000,0:00:10,0.5

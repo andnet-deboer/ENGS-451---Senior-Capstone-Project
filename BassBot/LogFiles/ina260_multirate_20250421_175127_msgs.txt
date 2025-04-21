@@ -1,0 +1,2 @@
+Emergency stop triggered.
+E-STOP during playback: 🚨 E-Stop is PRESSED. Action blocked for safety.

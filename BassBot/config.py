@@ -52,7 +52,13 @@ NOTE_MAPPING_KEYS = {
 KEY_SIGNAURE_MAPPING = {}
 
 
-
+# Servo settings
+SERVO_CONFIGS = {
+    'A': {'state': True, 'sustain': 1.44, 'low': -35, 'high': 25, 'offset': 0},
+    'D': {'state': False, 'sustain': 1.3, 'low': -30, 'high': 30, 'offset': 15},
+    'E': {'state': False, 'sustain': 1.3, 'low': -10, 'high': 40, 'offset': -15},
+    'G': {'state': True, 'sustain': 1.4, 'low': -30, 'high': 20, 'offset': 0},
+}
 
 
 # Current thresholds (in mA)

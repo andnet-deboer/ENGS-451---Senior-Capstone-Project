@@ -19,6 +19,8 @@ from flask import send_file
 from io import BytesIO
 from matplotlib.figure import Figure
 from flask import send_file
+from composer import playback_row
+
 
 Device.pin_factory = PiGPIOFactory()  # Prevents fallback to default
 
@@ -35,7 +37,7 @@ DEFAULT_SONG = "7NationArmy.xml"
 
 
 app = Flask(__name__)
-bass = Bass()
+
 # === App State ===
 try:
     os.sched_setaffinity(0, {0})
@@ -64,6 +66,7 @@ pause_event = threading.Event()
 stop_event = threading.Event()
 pause_event.set()
 
+last_bass_instance = None
 
 BASE_DIR      = Path(__file__).resolve().parent      
 FUNCTION_DIR  = BASE_DIR / 'ScratchFunctions'       
@@ -113,7 +116,7 @@ def start_playback_thread(song_filename):
                 if bass:
                     try:
                         bass.cleanup()
-                        safe_log_append("🧼 Global Bass instance cleaned.")
+                        safe_log_append("Global Bass instance cleaned.")
                     except Exception as e:
                         safe_log_append(f"⚠️ Error cleaning global Bass: {e}")
 
@@ -189,44 +192,117 @@ def stop_playback():
         safe_log_append("⚠️ No active playback to stop.")
 
 
-@app.route("/", methods=["GET", "POST"])
-def index():
-    global current_song, model_viewer_expanded
-    songs = get_song_list()
+# @app.route("/", methods=["GET", "POST"])
+# def index():
+#     global current_song, model_viewer_expanded
+#     songs = get_song_list()
 
-    if request.method == "POST":
-        action = request.form.get("action")
-        if action == "toggle_model_viewer":
-            model_viewer_expanded = not model_viewer_expanded
-            return jsonify({"status": "success", "expanded": model_viewer_expanded})
+#     if request.method == "POST":
+#         action = request.form.get("action")
+#         if action == "toggle_model_viewer":
+#             model_viewer_expanded = not model_viewer_expanded
+#             return jsonify({"status": "success", "expanded": model_viewer_expanded})
 
-    return render_template("gui.html",
-        current_song=current_song,
-        songs=songs,
-        log=log[-50:],
-        servo_positions=servo_positions,
-        servo_pins=SERVO_PINS,
-        relay_numbers=RELAY_NUMBERS,
-        model_viewer_expanded=model_viewer_expanded
-    )
-
-@app.route("/configurations")
+#     return render_template("gui.html",
+#         current_song=current_song,
+#         songs=songs,
+#         log=log[-50:],
+#         servo_positions=servo_positions,
+#         servo_pins=SERVO_PINS,
+#         relay_numbers=RELAY_NUMBERS,
+#         model_viewer_expanded=model_viewer_expanded
+#     )
+@app.route("/configurations", methods=["GET", "POST"])
 def configurations():
-    return render_template("configurations.html", servo_pins=SERVO_PINS, relay_numbers=RELAY_NUMBERS)
+    import config
+    importlib.reload(config)
+    global SERVO_PINS, RELAY_NUMBERS
+    SERVO_PINS = config.SERVO_PINS
+    RELAY_NUMBERS = config.RELAY_NUMBERS
+    servo_configs = config.SERVO_CONFIGS
+
+    if request.method == "POST" and request.form.get("action") == "SaveIDs":
+        try:
+            # Save pin updates
+            new_servo_pins = {k[6:]: int(v) for k, v in request.form.items() if k.startswith("SERVO_")}
+            new_relay_numbers = {k[5:]: int(v) for k, v in request.form.items() if k.startswith("fret_")}
+
+            # Save servo configs
+            updated_servo_configs = {}
+            for key in set(new_servo_pins.keys()) | set(config.SERVO_CONFIGS.keys()):
+                updated_servo_configs[key] = {
+                    'state': f"STATE_{key}" in request.form,
+                    'sustain': float(request.form.get(f"SUSTAIN_{key}", config.SERVO_CONFIGS.get(key, {}).get('sustain', 1.0))),
+                    'low': int(request.form.get(f"LOW_{key}", config.SERVO_CONFIGS.get(key, {}).get('low', -30))),
+                    'high': int(request.form.get(f"HIGH_{key}", config.SERVO_CONFIGS.get(key, {}).get('high', 30))),
+                    'offset': int(request.form.get(f"OFFSET_{key}", config.SERVO_CONFIGS.get(key, {}).get('offset', 0))),
+                }
+
+            def update_config_var(text, name, data):
+                start = re.search(rf'{name}\s*=\s*\{{', text)
+                if not start:
+                    return text  # skip if not found
+                start_index = start.start()
+                brace_count = 0
+                i = start.start()
+                while i < len(text):
+                    if text[i] == '{':
+                        brace_count += 1
+                    elif text[i] == '}':
+                        brace_count -= 1
+                        if brace_count == 0:
+                            end_index = i + 1
+                            break
+                    i += 1
+                else:
+                    return text
+
+                # Generate formatted config block
+                lines = [f"{name} = {{"]
+                for k, v in data.items():
+                    if isinstance(v, dict):
+                        lines.append(
+                            f"    '{k}': {{'state': {v['state']}, 'sustain': {v['sustain']}, 'low': {v['low']}, 'high': {v['high']}, 'offset': {v['offset']}}},")
+                    else:
+                        lines.append(f"    '{k}': {v},")
+                lines.append("}")
+                return text[:start_index] + "\n".join(lines) + text[end_index:]
+
+            with open("config.py", "r") as f:
+                text = f.read()
+
+            text = update_config_var(text, "SERVO_PINS", new_servo_pins)
+            text = update_config_var(text, "RELAY_NUMBERS", new_relay_numbers)
+            text = update_config_var(text, "SERVO_CONFIGS", updated_servo_configs)
+
+            with open("config.py", "w") as f:
+                f.write(text)
+
+            return "", 204  # no reload
+
+        except Exception as e:
+            safe_log_append(f"Error saving config: {e}")
+            return jsonify({"status": "error", "message": str(e)}), 500
+
+    return render_template("configurations.html",
+                           servo_pins=SERVO_PINS,
+                           relay_numbers=RELAY_NUMBERS,
+                           servo_configs=servo_configs)
 
 @app.route("/testing")
 def testing_interface():
     return render_template("testing.html")
 
+# at the top of your module, add:
+last_bass_instance = None
+
 @app.route("/execute_blocks", methods=["POST"])
 def execute_blocks():
-    from bass import Bass
-    from gpiozero.pins.pigpio import PiGPIOFactory
     import threading
+    global last_bass_instance
 
     data = request.get_json(force=True)
     code = data.get("code", "")
-
     if not code:
         return jsonify({"message": "No code provided."}), 400
 
@@ -234,24 +310,33 @@ def execute_blocks():
     def wait(seconds: float):
         threading.Event().wait(seconds)
 
-    # Initialize fresh bass
-    bass_instance = Bass(factory=PiGPIOFactory())
+    # 1) Clean up any old instance
+    if last_bass_instance:
+        try:
+            last_bass_instance.cleanup()
+        except Exception as e:
+            safe_log_append(f"⚠️ Error during prior cleanup: {e}")
+        last_bass_instance = None
 
-    # Local execution environment
-    local_env = {
-        "bass": bass_instance,
-        "wait": wait
-    }
+    # 2) Create a fresh Bass() and stash it
+    bass_instance = Bass()
+    last_bass_instance = bass_instance
 
     safe_log_append(f"Executing Blockly code:\n{code}")
+
+    # 3) Exec your code, then always clean up
     try:
-        exec(code, globals(), local_env)
-        bass_instance.cleanup()
+        exec(code, globals(), {"bass": bass_instance, "wait": wait})
         return jsonify({"message": "Blockly code executed successfully.", "log": log[-1]})
     except Exception as e:
-        bass_instance.cleanup()
         safe_log_append(f"❌ Error executing Blockly code: {e}")
         return jsonify({"message": f"Error executing Blockly code: {e}", "log": log[-1]}), 400
+    finally:
+        try:
+            bass_instance.cleanup()
+        except Exception as e:
+            safe_log_append(f"⚠️ Error during final cleanup: {e}")
+        last_bass_instance = None
 
 
 @app.route("/save_function", methods=["POST"])
@@ -318,6 +403,14 @@ def current_plot():
     fig.savefig(buf, format='png')
     buf.seek(0)
     return send_file(buf, mimetype='image/png')
+
+@app.route("/current_index")
+def current_index():
+    # might be None before playback starts
+    if playback_row is None:
+        return jsonify({"index": None}), 200
+    else:
+        return jsonify({"index": playback_row}), 200
 
 
 @app.route("/trigger_action", methods=["POST"])

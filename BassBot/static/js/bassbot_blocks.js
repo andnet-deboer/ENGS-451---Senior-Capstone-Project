@@ -27,7 +27,8 @@
           "options": [
             ["pick", "pick"],
             ["damp", "damp"],
-            ["sustain", "sustain"]
+            ["sustain", "sustain"],
+            ["zero", "zero"]
           ]
         }
       ],

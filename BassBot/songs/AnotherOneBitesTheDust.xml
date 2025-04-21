@@ -118,11 +118,11 @@
           <sign>F</sign>
           <line>4</line>
           </clef>
-        <transpose>
+        <!-- <transpose>
           <diatonic>0</diatonic>
           <chromatic>0</chromatic>
           <octave-change>-1</octave-change>
-          </transpose>
+          </transpose> -->
         </attributes>
       <direction placement="above">
         <direction-type>

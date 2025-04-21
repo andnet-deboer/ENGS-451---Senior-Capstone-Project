@@ -7,6 +7,7 @@ from xml.etree import ElementTree as ET
 from score_parser import ScoreParser
 from datetime import timedelta
 
+playback_row = None
 class Composer:
     def __init__(self, note_matrix, bass: Bass, damper_stream=None, fret_stream=None, pause_event=None, stop_event=None):
         self.note_matrix = note_matrix
@@ -18,8 +19,10 @@ class Composer:
         self.stop_event = stop_event or threading.Event()
 
     def play(self):
+        global playback_row
         self.bass.estop.require_safe()
         for i in range(len(self.note_matrix) - 1):
+            playback_row = i
             if self.stop_event.is_set():
                 print("[Composer] Stop requested. Exiting.")
                 self.bass.bass_off()
@@ -126,6 +129,7 @@ class Composer:
                 #PICKING
                 if (servo is not None):
                     #self.update_active_servo(servo)
+                    self.bass.damp_bass(servo)
                     if previous_servo == current_servo:
                         servo.sustain()
                         print("Picking With Sustain: ",note)

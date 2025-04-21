@@ -57,11 +57,6 @@
         .editable-input {
             width: 80px;
         }
-        .fa-pencil-alt {
-            cursor: pointer;
-            margin-left: 5px;
-            color: #3498db;
-        }
         .btn-save {
             margin-top: 20px;
             background-color: #2980b9;
@@ -75,9 +70,9 @@
 </head>
 <body>
     <div class="navbar">
-        <button onclick="window.location.href='/'"><i class="fas fa-home"></i> Home</button>
-        <button onclick="window.location.href='/configurations'" style="text-decoration: underline;"><i class="fas fa-cog"></i> Configuration</button>
-        <button onclick="window.location.href='/testing'" style="text-decoration: underline;"><i class="fas fa-cog"></i> Scratch Pad</button>
+        <button onclick="window.location.href='/'">Home</button>
+        <button onclick="window.location.href='/configurations'" style="text-decoration: underline;">Configuration</button>
+        <button onclick="window.location.href='/testing'">Scratch Pad</button>
     </div>
 
     <h1>Configuration Settings</h1>
@@ -87,25 +82,36 @@
                 <tr>
                     <th>String</th>
                     <th>Servo GPIO</th>
+                    <th>State</th>
+                    <th>Sustain Factor</th>
+                    <th>Low</th>
+                    <th>High</th>
+                    <th>Zero Offset</th>
                 </tr>
                 {% for string, pin in servo_pins.items() %}
                 <tr>
                     <td>{{ string }}</td>
                     <td><input type="text" name="SERVO_{{ string }}" value="{{ pin }}" class="editable-input"></td>
+                    <td><input type="checkbox" name="STATE_{{ string }}" {% if servo_configs[string].state %}checked{% endif %}></td>
+                    <td><input type="number" step="0.01" name="SUSTAIN_{{ string }}" value="{{ servo_configs[string].sustain }}" class="editable-input"></td>
+                    <td><input type="number" name="LOW_{{ string }}" value="{{ servo_configs[string].low }}" class="editable-input"></td>
+                    <td><input type="number" name="HIGH_{{ string }}" value="{{ servo_configs[string].high }}" class="editable-input"></td>
+                    <td><input type="number" name="OFFSET_{{ string }}" value="{{ servo_configs[string].offset }}" class="editable-input"></td>
                 </tr>
                 {% endfor %}
+
                 <tr>
                     <th>Fret</th>
-                    <th>Relay Number</th>
+                    <th colspan="6">Relay Number</th>
                 </tr>
                 {% for fret, num in relay_numbers.items() %}
                 <tr>
                     <td>{{ fret }}</td>
-                    <td><input type="text" name="fret_{{ fret }}" value="{{ num }}" class="editable-input"></td>
+                    <td colspan="6"><input type="text" name="fret_{{ fret }}" value="{{ num }}" class="editable-input"></td>
                 </tr>
                 {% endfor %}
             </table>
-            <button type="submit" name="action" value="SaveIDs" class="btn-save">Save IDs</button>
+            <button type="submit" name="action" value="SaveIDs" class="btn-save" style="background-color: #27ae60;">Save Settings</button>
         </form>
     </div>
 </body>

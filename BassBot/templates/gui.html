@@ -289,6 +289,7 @@
   
     <!-- Right Column: Model Viewer -->
     <div class="model-container">
+      <!-- 1) existing 3D Model Viewer panel -->
       <div class="model-header" onclick="toggleModelViewer()">
         <span>3D Model Viewer</span>
         <i id="model-toggle-icon" class="fas fa-chevron-down"></i>
@@ -296,6 +297,19 @@
       <div class="model-content" id="model-content">
         <model-viewer src="/static/bass_model.glb" alt="Bass Model" auto-rotate camera-controls></model-viewer>
       </div>
+
+      <!-- 2) new “Current Index” panel -->
+      <div class="model-header" onclick="toggleIndexViewer()">
+        <span>Current Index</span>
+        <i id="index-toggle-icon" class="fas fa-chevron-down"></i>
+      </div>
+      <div class="model-content" id="index-content">
+        <select id="indexDropdown">
+          <option>—</option>
+        </select>
+      </div>
+    </div>
+
 
       <!-- <label><strong>Current Monitor:</strong></label>
       <img id="currentPlot"
@@ -487,6 +501,35 @@ const img = document.getElementById('currentPlot');
   //   document.getElementById('currentPlot')
   //           .src = '/current_plot.png?ts=' + Date.now();
   // }, 50);
+
+  // toggle expansion exactly like the model viewer
+// function toggleIndexViewer() {
+//   const content = document.getElementById("index-content");
+//   const icon    = document.getElementById("index-toggle-icon");
+//   content.classList.toggle("expanded");
+//   icon.classList.toggle("fa-chevron-down");
+//   icon.classList.toggle("fa-chevron-up");
+// }
+
+// fetch current index and put it into our dropdown
+// async function fetchCurrentIndex() {
+//   try {
+//     const res  = await fetch("/current_index");
+//     if (!res.ok) throw new Error(res.statusText);
+//     const json = await res.json();
+//     const dropdown = document.getElementById("indexDropdown");
+//     dropdown.innerHTML = `<option>${json.index ?? "—"}</option>`;
+//   } catch (e) {
+//     console.warn("Could not fetch index:", e);
+//   }
+// }
+
+// // kick off polling once the page is loaded
+// document.addEventListener("DOMContentLoaded", () => {
+//   fetchCurrentIndex();
+//   setInterval(fetchCurrentIndex, 1000);
+// });
+
   </script>
 </body>
 </html>
