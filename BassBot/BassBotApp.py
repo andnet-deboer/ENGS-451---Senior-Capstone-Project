@@ -220,37 +220,38 @@ def testing_interface():
 
 @app.route("/execute_blocks", methods=["POST"])
 def execute_blocks():
+    from bass import Bass
+    from gpiozero.pins.pigpio import PiGPIOFactory
+    import threading
+
     data = request.get_json(force=True)
     code = data.get("code", "")
 
     if not code:
         return jsonify({"message": "No code provided."}), 400
 
+    # Define wait function
     def wait(seconds: float):
         threading.Event().wait(seconds)
 
-    # --- helper that custom blocks call ---------------------------------
-    def __run_saved_function(name: str):
-        fpath = FUNCTION_DIR / f"{name}.py"
-        if not fpath.exists():
-            print(f"[WARN] saved function '{name}' not found")
-            return
-        exec(fpath.read_text(encoding="utf-8"), globals(), local_env)
+    # Initialize fresh bass
+    bass_instance = Bass(factory=PiGPIOFactory())
 
-    # environment visible to executed code
-    local_env = {"bass": bass,
-                 "wait": wait,
-                 "__run_saved_function": __run_saved_function}
+    # Local execution environment
+    local_env = {
+        "bass": bass_instance,
+        "wait": wait
+    }
 
     safe_log_append(f"Executing Blockly code:\n{code}")
     try:
         exec(code, globals(), local_env)
-        return jsonify({"message": "Blockly code executed successfully.",
-                        "log": log[-1]})
+        bass_instance.cleanup()
+        return jsonify({"message": "Blockly code executed successfully.", "log": log[-1]})
     except Exception as e:
+        bass_instance.cleanup()
         safe_log_append(f"❌ Error executing Blockly code: {e}")
-        return jsonify({"message": f"Error executing Blockly code: {e}",
-                        "log": log[-1]}), 400
+        return jsonify({"message": f"Error executing Blockly code: {e}", "log": log[-1]}), 400
 
 
 @app.route("/save_function", methods=["POST"])
