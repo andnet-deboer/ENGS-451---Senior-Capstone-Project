@@ -2,6 +2,8 @@
 
 ## About
 
+📄 [Final Presentation PDF](./Bass_Bot_Final_Presentation.pdf)
+
 This project seeks to investigate the ability of incorporating modern robotics into the creative and technical space of making live music. The goal of this project is to create a working demonstration device that attaches to a bass guitar and creates music by pressing and plucking the strings like how a human performer would. 
 
 This system should be able to play at an intermediate level of bass technique and follow common chord progressions at moderate tempos in worship, pop, rock, and other types of music. This device will be used to research and explore how robotics could enter the creative musical environment.
